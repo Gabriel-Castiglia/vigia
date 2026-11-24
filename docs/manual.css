@@ -23,7 +23,7 @@
 html { font-size: 10.5pt; }
 
 body {
-    font-family: -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif;
+    font-family: -apple-system, "SF Pro Text", "Helvetica Neue", "Hiragino Sans", sans-serif;
     color: var(--texto);
     line-height: 1.5;
     max-width: none;

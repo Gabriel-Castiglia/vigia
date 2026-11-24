@@ -26,7 +26,7 @@ if [[ ! -L build ]]; then
 fi
 [[ "${FIRMA:-}" == adhoc ]] || source scripts/firma.sh
 
-VERSION="3.1.0"
+VERSION="3.2.0"
 COMPILACION="1"
 APP="build/Vigia.app"
 
@@ -60,8 +60,8 @@ R="$APP/Contents/Resources"
 cp -R icono/accents "$R/accents"
 rsync -a --exclude '.DS_Store' web/ "$R/web/"
 mkdir -p "$R/samples" "$R/docs" "$R/licenses"
-cp samples/sample_en.md samples/sample_es.md "$R/samples/"
-cp docs/Vigia-manual-en.pdf docs/Vigia-manual-es.pdf "$R/docs/" 2>/dev/null || true
+cp samples/sample_en.md samples/sample_es.md samples/sample_ja.md "$R/samples/"
+cp docs/Vigia-manual-en.pdf docs/Vigia-manual-es.pdf docs/Vigia-manual-ja.pdf "$R/docs/" 2>/dev/null || true
 cp LICENSE "$R/licenses/Vigia-LICENSE"
 
 # 3. Info.plist: opens Markdown files (as an alternative, never taking them over)

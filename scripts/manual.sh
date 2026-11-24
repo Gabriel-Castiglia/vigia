@@ -2,6 +2,7 @@
 # manual.sh: builds the PDF manuals from the READMEs.
 #   README.md     -> docs/Vigia-manual-en.pdf
 #   README.es.md  -> docs/Vigia-manual-es.pdf
+#   README.ja.md  -> docs/Vigia-manual-ja.pdf (3.2.0)
 #
 # Copyright (C) 2026 Gabriel Castiglia. Licensed under the GNU GPL, version 2 only.
 # Date: November 10, 2026
@@ -12,7 +13,7 @@
 # It is distributed WITHOUT ANY WARRANTY. See the LICENSE file for details.
 #
 # Requires pandoc (brew install pandoc) and Google Chrome, which prints the HTML to PDF.
-# Run it again after every change to either README.
+# Run it again after every change to any of the READMEs.
 
 set -euo pipefail
 RAIZ="${0:A:h:h}"
@@ -27,8 +28,8 @@ command -v pandoc >/dev/null || { echo "pandoc is missing: brew install pandoc" 
 # The version on the cover is the one in the READMEs' byline: it must be the version being built
 # (it said 1.0.1 on the manuals of 1.1.0 to 1.2.0).
 VERSION="$(sed -n 's/^VERSION="\(.*\)"$/\1/p' scripts/compilar.sh)"
-grep -q "· version ${VERSION} ·" README.md && grep -q "· versión ${VERSION} ·" README.es.md || {
-  echo "The byline of README.md and README.es.md must say version ${VERSION} (scripts/compilar.sh)" >&2; exit 1; }
+grep -q "· version ${VERSION} ·" README.md && grep -q "· versión ${VERSION} ·" README.es.md && grep -q "· バージョン ${VERSION} ·" README.ja.md || {
+  echo "The byline of README.md, README.es.md and README.ja.md must say version ${VERSION} (scripts/compilar.sh)" >&2; exit 1; }
 
 TEMPORAL="$(mktemp -d)"
 trap 'rm -rf "$TEMPORAL"' EXIT
@@ -77,3 +78,4 @@ generar() {
 
 generar README.md    en "Vigía · Manual"            docs/Vigia-manual-en.pdf
 generar README.es.md es "Vigía · Manual de usuario" docs/Vigia-manual-es.pdf
+generar README.ja.md ja "Vigía · ユーザー マニュアル" docs/Vigia-manual-ja.pdf

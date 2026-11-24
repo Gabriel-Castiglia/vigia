@@ -3,7 +3,7 @@
 <h1 align="center">Vigía</h1>
 <p align="center"><b>Escribí Markdown en forma visual. Miralo como en GitHub.</b></p>
 
-Gabriel Castiglia · 21 de noviembre de 2026 · versión 3.1.0 · GPL-2.0-only
+Gabriel Castiglia · 24 de noviembre de 2026 · versión 3.2.0 · GPL-2.0-only
 
 Hasta la versión 2.2.1 se llamaba Gryphmark: al instalar Vigía se quita, y su configuración, sus instancias
 dedicadas y sus borradores de recuperación pasan solos la primera vez que Vigía arranca.
@@ -18,7 +18,7 @@ Manual en PDF: [`docs/Vigia-manual-es.pdf`](docs/Vigia-manual-es.pdf)
 
 Vigía es un visor y editor de Markdown para la Mac. Das formato con botones (títulos, negrita, listas,
 tablas, código) y Vigía escribe las etiquetas de Markdown por vos; la vista GitHub muestra el documento tal
-cual lo muestra GitHub, en claro u oscuro. La interfaz está en español e inglés.
+cual lo muestra GitHub, en claro u oscuro. La interfaz está en español, inglés y japonés ([日本語](README.ja.md)).
 
 ## Recarga en vivo
 
@@ -39,7 +39,7 @@ punto o la fila que se agregó. Si tenés cambios sin guardar, pregunta antes de
 ## Instalación
 
 Bajá `Vigia-<versión>.pkg` de la [página de versiones](https://github.com/Gabriel-Castiglia/vigia/releases/latest)
-y abrilo. El instalador está en español o inglés, según el idioma de la Mac. Pone `Vigia.app` en
+y abrilo. El instalador está en español, inglés o japonés, según el idioma de la Mac. Pone `Vigia.app` en
 `/Applications` y, si había una copia abierta, la cierra antes; instalar un paquete más nuevo conserva la
 configuración.
 
@@ -49,7 +49,7 @@ pudo verificar…»). Abrí Configuración del Sistema → Privacidad y segurida
 versión podés comprobar la descarga antes:
 
 ```
-shasum -a 256 Vigia-3.1.0.pkg
+shasum -a 256 Vigia-3.2.0.pkg
 ```
 
 Vigía puede abrir archivos Markdown desde el Finder (clic derecho → Abrir con → Vigía) sin quitárselos a
@@ -61,6 +61,20 @@ papelera y, si querés borrar también la configuración, corré `defaults delet
 - Tres vistas del mismo documento (⌘1, ⌘2, ⌘3): Visual, el documento con formato que editás con los botones;
   Markdown, el código con la vista previa en vivo al lado; GitHub, de solo lectura, tal cual lo va a mostrar
   github.com.
+- Pestañas: cada archivo se abre en su propia pestaña, que conserva su historial de deshacer, el cursor y el lugar
+  de lectura mientras se ve otra. Abrir un archivo muestra la pestaña que ya lo tiene, o lo abre en una pestaña nueva
+  al lado de la que se ve; una pestaña sin título en la que nadie escribió, o el ejemplo tal como vino, toma el archivo
+  en su lugar. Un clic en el panel de archivos, un enlace a otro archivo Markdown y los archivos soltados en la
+  ventana abren de la misma forma, y varios archivos elegidos juntos en Archivo → Abrir… abren una pestaña cada uno.
+  ⌘T abre una pestaña sin título y ⌘W cierra una, preguntando por sus cambios sin guardar; ⌃⇥ y ⌃⇧⇥ cambian de
+  pestaña, y ⇧⌘T (Archivo → Reabrir la pestaña cerrada) trae la última que se cerró. Son las pestañas de macOS: una
+  pestaña se arrastra a lo largo de la barra para cambiarla de lugar, o fuera de la ventana para darle una ventana
+  propia; el menú Ventana mueve una pestaña a una ventana nueva, junta todas las ventanas y muestra todas las
+  pestañas. ⌘N sigue abriendo una ventana nueva, igual que clic derecho → *Abrir en otra ventana* en el panel de
+  archivos. Con Archivo → Reabrir las pestañas al iniciar encendido (viene apagado), el próximo arranque vuelve a abrir
+  los mismos archivos con la misma pestaña adelante. La lista se escribe a medida que cambian las pestañas, así que
+  sobrevive a un cierre inesperado; los documentos sin título no se guardan, y un archivo que ya no está se deja
+  afuera. Una actualización que se instala sola vuelve a abrir todas las pestañas.
 - Editar o Solo lectura (⇧⌘L): solo lectura bloquea el texto para que nada cambie por error; igual podés
   seleccionar, copiar, buscar y cambiar de vista.
 - La barra y el menú Formato: títulos, negrita, cursiva, tachado, código en línea, listas, listas de tareas,
@@ -114,7 +128,14 @@ papelera y, si querés borrar también la configuración, corré `defaults delet
 - Las carpetas del panel de archivos: cada una tiene su color (tonos del color del tema, multicolor o ninguno, o uno
   elegido a mano) y se puede fijar arriba, subir, bajar o cerrar (clic derecho en su nombre). El botón ⋯ las ordena
   (orden de apertura, por nombre o modificadas recientemente primero) y define qué se abre al iniciar: las carpetas de
-  la última sesión, ninguna o solo las fijadas (también Archivo → Carpetas al iniciar).
+  la última sesión, ninguna o solo las fijadas (también Archivo → Carpetas al iniciar). El botón de dos flechas de la
+  cabecera del panel contrae todas las carpetas mientras haya alguna abierta, y las expande todas, en todos los
+  niveles, cuando están todas cerradas; su ícono y su ayuda dicen cuál de las dos hace, y el menú ⋯ tiene la misma
+  orden. Expandir se detiene en 1.500 carpetas, para que un árbol del tamaño de un disco entero no trabe la ventana.
+- Menú Idioma: español, inglés o japonés, con el cambio en el acto en todas las ventanas, menús del editor incluidos.
+  El primer arranque sigue el idioma de la Mac. Con un texto en japonés la línea de estado cuenta las palabras con el
+  separador de palabras del sistema, porque el japonés no deja espacios entre ellas, y Ayuda → Guía de Markdown abre
+  la página de GitHub en el idioma de la interfaz.
 - Convertir a TXT: clic derecho en un archivo del panel de archivos. Se escribe un .txt al lado, como se lee el
   documento en la vista GitHub (títulos, listas, tablas y enlaces en texto plano); el archivo Markdown no cambia.
 - Buscar y reemplazar (⌘F, ⌥⌘F, ⌘G), zoom (⌘+, ⌘−, ⌘0, o el deslizador de la línea de estado), corrector ortográfico, exportar a una página HTML
@@ -193,7 +214,7 @@ Las versiones de las herramientas con que se compiló y probó Vigía 3.1.0 est�
 | `Sources/` | La app (Swift, AppKit, SwiftUI y WebKit) |
 | `web/` | La página del editor y sus bibliotecas, compartidas con la versión para Windows |
 | `_npm/` | Las dependencias web y la entrada de esbuild |
-| `samples/` | El documento de ejemplo, en español e inglés |
+| `samples/` | El documento de ejemplo, en español, inglés y japonés |
 | `assets/`, `icono/` | El ícono del faro y sus doce colores |
 | `instalador/` | Las páginas y el script del paquete instalador |
 | `scripts/` | Compilar, empaquetar, paquete web, manuales e imágenes |

@@ -1,5 +1,37 @@
 # Changelog
 
+## 3.2.0 — 2026-11-24
+
+The same as Vigía 3.2.0 for Windows: tabs, Expand all and Japanese.
+
+- Tabs, with the tabs of macOS. Each document keeps its own editor, so its undo history, cursor and scroll
+  position stay while another tab is shown; a dot on the close button of a tab marks unsaved changes. Opening a file
+  shows the tab that already has it, or opens it in a new tab next to the shown one, or in the shown tab itself when
+  it is an untitled document nobody typed in or the sample as it came. That goes for File → Open…, Open recent, a
+  click in the Files panel, a link to another Markdown file, the files dropped on the window and the ones the Finder
+  sends; several at once open a tab each. Before, a click in the Files panel replaced the open document.
+  - ⌘T (File → New Tab) opens an untitled tab; ⌘N (File → New Window) still opens a window. ⌘W closes a tab, asking
+    about its unsaved changes. ⌃⇥ and ⌃⇧⇥ switch tabs, and ⇧⌘T (File → Reopen
+    Closed Tab) brings back the last one closed. The Window menu shows the previous or the next tab, moves a tab to a
+    new window, merges all the windows and shows all the tabs, in the app's language.
+  - File → Reopen Tabs at Start (off by default): the next start opens the files of the tabs again, in order,
+    with the same tab in front. The list is written as the tabs change, so it survives a crash; quitting or closing
+    the last window keeps it. Untitled documents are not kept, and a file that is gone by then is left out. Files
+    the Finder asks to open at start are added after them.
+  - A tab whose file changes on disk reloads at once, also while another tab is shown, as every window did. Moving
+    or renaming files in the Files panel takes their tabs along, and each tab keeps its own recovery draft.
+  - An update that installs itself opens every tab again.
+- Expand all: the button of the Files panel's header collapses every folder while any is open, and expands them
+  all, every level, when everything is closed; its icon and tooltip say which. Also in the panel's ⋯ menu. Expanding
+  stops after 1,500 folders.
+- Japanese (日本語): menus, toolbar, tooltips, dialogs, panes, the editor's own menus and the theme colours, a
+  Japanese sample document and the installer in Japanese. *Language → 日本語*; on a Mac in Japanese it is the language
+  from the first start. A Japanese text counts its words with the system's word breaker (a text without spaces
+  counted as one word), and Help → Markdown guide opens GitHub's Japanese page. The manual in Japanese is
+  `docs/Vigia-manual-ja.pdf` (Help → User manual), made from `README.ja.md`.
+- The Files panel's title shows whole or not at all: next to the buttons, a narrow panel cut it to "FI…".
+- The sample document, in every language, has a section on tabs.
+
 ## 3.1.0 — 2026-11-21
 
 The panes work as on Windows.

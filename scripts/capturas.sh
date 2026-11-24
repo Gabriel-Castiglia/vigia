@@ -18,7 +18,7 @@ cd "$RAIZ"
 B=build/Vigia.app/Contents/MacOS/Vigia
 [[ -x $B ]] || { echo "build the app first: scripts/compilar.sh" >&2; exit 1 }
 mkdir -p docs/img
-for idioma in en es; do
+for idioma in en es ja; do
     $B --screenshot docs/img/visual-$idioma.png --lang $idioma --theme light --mode visual
     $B --screenshot docs/img/github-$idioma.png --lang $idioma --theme dark --mode preview
     $B --screenshot docs/img/theme-$idioma.png --view theme --lang $idioma --theme light

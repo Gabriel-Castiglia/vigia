@@ -54,6 +54,10 @@ final class Prefs: ObservableObject {
     @Published var folderColors = "theme" { didSet { save() } }         // theme, multi, none
     @Published var folderColorMap: [String: Double] = [:] { didSet { save() } }   // hue chosen by hand
     @Published var sampleShown = false { didSet { save() } }
+    // File → Reopen Tabs at Start (off by default): the files of the tabs, in order, and the one shown (Tabs.swift).
+    @Published var restoreTabs = false { didSet { save() } }
+    var openTabs: [String] = [] { didSet { save() } }
+    var activeTab = 0 { didSet { save() } }
     @Published private(set) var dark = false
 
     var persist = true
@@ -64,7 +68,7 @@ final class Prefs: ObservableObject {
         guard persist else { return }
         loading = true
         defer { loading = false }
-        lang = d.string(forKey: "Lang") ?? Prefs.macLanguage
+        lang = d.string(forKey: "Lang").map { Prefs.language($0) } ?? Prefs.macLanguage
         theme = d.string(forKey: "Theme") ?? "auto"
         accent = d.string(forKey: "Accent") ?? Accent.defaultKey
         mode = d.string(forKey: "Mode") ?? "visual"
@@ -96,6 +100,27 @@ final class Prefs: ObservableObject {
         folderColors = ["theme", "multi", "none"].contains(d.string(forKey: "FolderColors") ?? "") ? d.string(forKey: "FolderColors")! : "theme"
         folderColorMap = (d.dictionary(forKey: "FolderColorMap") as? [String: Double]) ?? [:]
         sampleShown = d.bool(forKey: "SampleShown")
+        restoreTabs = d.bool(forKey: "RestoreTabs")
+        openTabs = (d.stringArray(forKey: "OpenTabs") ?? []).filter { !$0.isEmpty }
+        activeTab = d.integer(forKey: "ActiveTab")
+    }
+
+    /// On quitting, the files of every tab, so that the new version opens them again after an update installs
+    /// itself (SelfUpdate relaunches the app within ten minutes of the quit).
+    func keepTabsForUpdate(_ files: [String]) {
+        guard persist else { return }
+        d.set(files, forKey: "UpdateTabs")
+        d.set(appVersion, forKey: "UpdateTabsVersion")
+        d.set(Date().timeIntervalSince1970, forKey: "UpdateTabsAt")
+    }
+
+    /// The tabs kept by the quit before an update, once, if this start is that update's (another version, soon after).
+    func takeUpdateTabs() -> [String] {
+        guard persist else { return [] }
+        defer { for k in ["UpdateTabs", "UpdateTabsVersion", "UpdateTabsAt"] { d.removeObject(forKey: k) } }
+        guard let v = d.string(forKey: "UpdateTabsVersion"), v != appVersion,
+              abs(Date().timeIntervalSince1970 - d.double(forKey: "UpdateTabsAt")) < 600 else { return [] }
+        return d.stringArray(forKey: "UpdateTabs") ?? []
     }
 
     func save() {
@@ -107,6 +132,7 @@ final class Prefs: ObservableObject {
             "LayoutWidths": layoutWidths, "OutlineShare": outlineShare, "OutlineShareColumns": outlineShareColumns, "TextWidth": textWidth, "TreeLocked": treeLocked, "SearchMode": searchMode, "Recent": recent, "RecentFolders": recentFolders, "SampleHidden": sampleHidden, "Folders": folders, "SampleShown": sampleShown,
             "PinnedFolders": pinned, "StartupFolders": startupFolders, "FolderSort": folderSort, "FolderColors": folderColors,
             "FolderColorMap": folderColorMap, "Favorites": favorites, "RecentPanel": recentPanel,
+            "RestoreTabs": restoreTabs, "OpenTabs": openTabs, "ActiveTab": activeTab,
         ]
         for (k, v) in values { d.set(v, forKey: k) }
     }
@@ -163,9 +189,10 @@ final class Prefs: ObservableObject {
     static let columnsRange = 360.0...1000.0       // the sidebar with Files and Contents side by side
     static func clampColumns(_ w: Double) -> Double { min(max(w, columnsRange.lowerBound), columnsRange.upperBound) }
 
-    /// The first time, Spanish if the Mac speaks it, English otherwise.
+    /// The first time, Spanish or Japanese if the Mac speaks it, English otherwise.
     static var macLanguage: String {
-        Locale.preferredLanguages.first?.hasPrefix("es") == true ? "es" : "en"
+        let first = Locale.preferredLanguages.first ?? ""
+        return first.hasPrefix("es") ? "es" : first.hasPrefix("ja") ? "ja" : "en"
     }
 
     /// What the panel opens with at start: the folders of the last session (pinned ones included), none, or
@@ -240,11 +267,23 @@ final class Prefs: ObservableObject {
     }
 
     /// The twelve colours of the Colour menu: hue every 30 degrees.
-    static let folderHues: [(hue: Double, en: String, es: String)] = [
-        (0, "Red", "Rojo"), (30, "Orange", "Naranja"), (60, "Yellow", "Amarillo"), (90, "Lime", "Lima"),
-        (120, "Green", "Verde"), (150, "Mint", "Menta"), (180, "Cyan", "Cian"), (210, "Sky", "Celeste"),
-        (240, "Blue", "Azul"), (270, "Violet", "Violeta"), (300, "Purple", "Morado"), (330, "Pink", "Rosa"),
+    static let folderHues: [(hue: Double, en: String, es: String, ja: String)] = [
+        (0, "Red", "Rojo", "赤"), (30, "Orange", "Naranja", "オレンジ"), (60, "Yellow", "Amarillo", "黄"),
+        (90, "Lime", "Lima", "ライム"), (120, "Green", "Verde", "緑"), (150, "Mint", "Menta", "ミント"),
+        (180, "Cyan", "Cian", "シアン"), (210, "Sky", "Celeste", "スカイブルー"), (240, "Blue", "Azul", "青"),
+        (270, "Violet", "Violeta", "バイオレット"), (300, "Purple", "Morado", "紫"), (330, "Pink", "Rosa", "ピンク"),
     ]
+
+    /// The text of the app's language among the three versions.
+    static func pick(_ en: String, _ es: String, _ ja: String) -> String {
+        switch shared.lang { case "es": return es; case "ja": return ja; default: return en }
+    }
+
+    /// The languages of the interface, in the order of the Language menu.
+    static let languages = [("en", "English"), ("es", "Español"), ("ja", "日本語")]
+
+    /// A language code the app knows ("en", "es" or "ja"); anything else is English.
+    static func language(_ code: String?) -> String { ["es", "ja"].contains(code ?? "") ? code! : "en" }
 
     static func hsl(_ rgb: UInt32) -> (h: Double, s: Double, l: Double) {
         let r = Double(rgb >> 16 & 0xFF) / 255, g = Double(rgb >> 8 & 0xFF) / 255, b = Double(rgb & 0xFF) / 255
@@ -364,8 +403,9 @@ final class Prefs: ObservableObject {
 
 /// The text for `key` in the app's language; {0}, {1}… are replaced by `args`.
 func L(_ key: String, _ args: CustomStringConvertible...) -> String {
-    let row = STRINGS[key] ?? [key, key]
-    var s = Prefs.shared.lang == "es" ? row[1] : row[0]
+    let row = STRINGS[key] ?? [key, key, key]
+    let lang = Prefs.shared.lang
+    var s = lang == "es" ? row[1] : lang == "ja" && row.count > 2 ? row[2] : row[0]
     for (i, a) in args.enumerated() { s = s.replacingOccurrences(of: "{\(i)}", with: a.description) }
     return s
 }
@@ -373,10 +413,10 @@ func L(_ key: String, _ args: CustomStringConvertible...) -> String {
 /// The twelve theme colours of the Windows version: the icon background (icono/accents/<key>.png,
 /// made by tools/make_icons.py) and the highlight for the light and the dark chrome.
 struct Accent {
-    let key, en, es: String
+    let key, en, es, ja: String
     let light, dark: UInt32
 
-    var name: String { Prefs.shared.lang == "es" ? es : en }
+    var name: String { Prefs.pick(en, es, ja) }
 
     func color(dark isDark: Bool) -> Color {
         let v = isDark ? dark : light
@@ -390,18 +430,18 @@ struct Accent {
     }
 
     static let all: [Accent] = [
-        Accent(key: "gold", en: "Gold", es: "Dorado", light: 0x9A6F00, dark: 0xE2B84C),
-        Accent(key: "purple", en: "Purple", es: "Morado", light: 0x5B2A86, dark: 0xB392E0),
-        Accent(key: "sky", en: "Sky blue", es: "Celeste", light: 0x1A8CD8, dark: 0x5CB8F0),
-        Accent(key: "ember", en: "Orange", es: "Naranja", light: 0xD9652F, dark: 0xF08A5D),
-        Accent(key: "red", en: "Red", es: "Rojo", light: 0xC8102E, dark: 0xF2545B),
-        Accent(key: "yellow", en: "Yellow", es: "Amarillo", light: 0xB88A00, dark: 0xF5C842),
-        Accent(key: "green", en: "Green", es: "Verde", light: 0x1E8A43, dark: 0x4CC27A),
-        Accent(key: "teal", en: "Teal", es: "Verde azulado", light: 0x00796B, dark: 0x4DB6AC),
-        Accent(key: "blue", en: "Blue", es: "Azul", light: 0x1F5FD1, dark: 0x6E9BFF),
-        Accent(key: "pink", en: "Pink", es: "Rosa", light: 0xC2185B, dark: 0xF06292),
-        Accent(key: "black", en: "Black", es: "Negro", light: 0x1D1D1F, dark: 0xC7C7CC),
-        Accent(key: "white", en: "White", es: "Blanco", light: 0x8E8E93, dark: 0xF5F5F7),
+        Accent(key: "gold", en: "Gold", es: "Dorado", ja: "ゴールド", light: 0x9A6F00, dark: 0xE2B84C),
+        Accent(key: "purple", en: "Purple", es: "Morado", ja: "紫", light: 0x5B2A86, dark: 0xB392E0),
+        Accent(key: "sky", en: "Sky blue", es: "Celeste", ja: "スカイブルー", light: 0x1A8CD8, dark: 0x5CB8F0),
+        Accent(key: "ember", en: "Orange", es: "Naranja", ja: "オレンジ", light: 0xD9652F, dark: 0xF08A5D),
+        Accent(key: "red", en: "Red", es: "Rojo", ja: "赤", light: 0xC8102E, dark: 0xF2545B),
+        Accent(key: "yellow", en: "Yellow", es: "Amarillo", ja: "黄", light: 0xB88A00, dark: 0xF5C842),
+        Accent(key: "green", en: "Green", es: "Verde", ja: "緑", light: 0x1E8A43, dark: 0x4CC27A),
+        Accent(key: "teal", en: "Teal", es: "Verde azulado", ja: "ティール", light: 0x00796B, dark: 0x4DB6AC),
+        Accent(key: "blue", en: "Blue", es: "Azul", ja: "青", light: 0x1F5FD1, dark: 0x6E9BFF),
+        Accent(key: "pink", en: "Pink", es: "Rosa", ja: "ピンク", light: 0xC2185B, dark: 0xF06292),
+        Accent(key: "black", en: "Black", es: "Negro", ja: "黒", light: 0x1D1D1F, dark: 0xC7C7CC),
+        Accent(key: "white", en: "White", es: "Blanco", ja: "白", light: 0x8E8E93, dark: 0xF5F5F7),
     ]
 
     static let defaultKey = "sky"     // the lighthouse against the sky (3.1.0; gold before)

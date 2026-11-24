@@ -52,6 +52,7 @@ final class DocWindow: NSWindowController, NSWindowDelegate {
     var onReady: (() -> Void)?
     private(set) var reach: [URL] = []       // what the document's links and pictures may reach (Wiki.reach)
     private var foldersWatch: AnyCancellable?
+    private var pathWatch: AnyCancellable?
 
     static var all: [DocWindow] = []
     static let minContent = NSSize(width: 760, height: 452)
@@ -61,18 +62,21 @@ final class DocWindow: NSWindowController, NSWindowDelegate {
                          styleMask: [.titled, .closable, .miniaturizable, .resizable],
                          backing: .buffered, defer: false)
         w.titlebarAppearsTransparent = false
-        w.tabbingMode = .disallowed
+        // Tabs (3.2.0): each tab is a document window of its own (Tabs.swift).
+        w.tabbingMode = .automatic
+        w.tabbingIdentifier = Tabs.identifier
         super.init(window: w)
         w.delegate = self
         w.contentView = NSHostingViewFor(self).make()
         web.view.pageZoom = prefs.zoom
         web.onMessage = { [weak self] m in self?.handle(m) }
         web.onLink = { [weak self] href in self?.openLink(href) }
-        web.onFileDrop = { [weak self] url in self?.open(url) }
+        web.onFileDrop = { [weak self] url in (NSApp.delegate as? AppDelegate)?.open(url, from: self) }
         DocWindow.all.append(self)
         updateTitle()
         recoveryTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in self?.writeRecovery() }
         // A folder added to or closed in the Files panel changes what the open document may reach.
+        pathWatch = model.$path.dropFirst().removeDuplicates().sink { _ in Tabs.changed() }
         foldersWatch = prefs.$folders.dropFirst().receive(on: RunLoop.main).sink { [weak self] f in
             guard let self, let dir = self.model.path?.deletingLastPathComponent() else { return }
             self.applyReach(dir, panel: f)
@@ -154,7 +158,10 @@ final class DocWindow: NSWindowController, NSWindowDelegate {
     func command(_ c: String) {
         let app = NSApp.delegate as? AppDelegate
         switch c {
-        case "new": app?.newWindow()
+        case "new": app?.newTab(after: self)
+        case "nexttab": app?.selectTab(from: self, 1)
+        case "prevtab": app?.selectTab(from: self, -1)
+        case "reopentab": app?.reopenClosedTab()
         case "open": app?.openPanel()
         case "save": Task { await save(as: false) }
         case "saveas": Task { await save(as: true) }
@@ -220,6 +227,25 @@ final class DocWindow: NSWindowController, NSWindowDelegate {
 
     var isEmptyUntitled: Bool { model.path == nil && !model.dirty && !model.isSample }
 
+    /// An untitled tab nobody typed in, or the sample as it came: a file opened now takes its place.
+    var isPristine: Bool { model.path == nil && pendingOpen == nil && !model.dirty }
+
+    /// The file of this tab: the one shown, or the one waiting for the page to be ready.
+    var filePath: URL? { model.path ?? pendingOpen }
+
+    /// Opens `url` in a tab with no text of its own: no question, and while the page is still starting the file
+    /// waits for it (its name is already the tab's title).
+    func openFresh(_ url: URL) {
+        let url = url.standardizedFileURL
+        if model.ready { Task { @MainActor in await load(url) }; return }
+        pendingOpen = url
+        window?.title = url.lastPathComponent
+        Tabs.changed()
+    }
+
+    /// The + button of the tab bar.
+    @IBAction override func newWindowForTab(_ sender: Any?) { (NSApp.delegate as? AppDelegate)?.newTab(after: self) }
+
     /// Opens `url` here (asking about unsaved changes first).
     func open(_ url: URL) {
         Task { @MainActor in
@@ -241,7 +267,7 @@ final class DocWindow: NSWindowController, NSWindowDelegate {
 
     @MainActor
     func load(_ url: URL) async {
-        guard model.ready else { pendingOpen = url; return }
+        guard model.ready else { pendingOpen = url.standardizedFileURL; return }
         let url = url.standardizedFileURL
         do {
             let r = try DocWindow.read(url)
@@ -381,7 +407,12 @@ final class DocWindow: NSWindowController, NSWindowDelegate {
         return false
     }
 
+    func windowDidBecomeKey(_ notification: Notification) { Tabs.changed() }
+
     func windowWillClose(_ notification: Notification) {
+        if let p = model.path { Tabs.closed.removeAll { $0 == p }; Tabs.closed.append(p) }
+        // after the whole window has closed: closing the last one keeps the session (Tabs.saveNow)
+        Tabs.changed(after: 0.3)
         watcher = nil
         autoSaveTimer?.invalidate()
         recoveryTimer?.invalidate()

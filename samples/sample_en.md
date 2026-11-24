@@ -65,6 +65,10 @@ $$
 
 Open a whole folder with **File → Open folder…** and its Markdown files appear in a tree on the left, like in VS Code or Obsidian. You can open several folders, and the contents of the open document are listed below them. Click a file to open it; `⇧⌘E` shows or hides the sidebar.
 
+## Tabs
+
+Each file opens in a tab of its own. `⌘T` opens a new tab, `⌃⇥` switches tabs and `⌘W` closes one. Turn on **File → Reopen Tabs at Start** and the next start opens the same files again.
+
 ---
 
 This sample opens by itself only the first time. It is always available again from **Help → Sample document**.

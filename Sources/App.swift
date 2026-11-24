@@ -57,7 +57,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func application(_ app: NSApplication, open urls: [URL]) {
-        if launched { urls.forEach { open($0, from: nil) } } else { launchFiles += urls }
+        if !launched { launchFiles += urls }
+        else if urls.count == 1 { open(urls[0], from: nil) }
+        else { openAll(urls.map(\.standardizedFileURL), show: urls.count - 1) }
     }
 
     /// The self-test without visible windows (see applicationDidFinishLaunching).
@@ -73,7 +75,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         prefs.persist = shot == nil && !selfTest
         prefs.load()
         if shot != nil {
-            if let l = argument(after: "--lang") { prefs.lang = l == "es" ? "es" : "en" }
+            if let l = argument(after: "--lang") { prefs.lang = Prefs.language(l) }
             if let t = argument(after: "--theme") { prefs.theme = t }
             if let a = argument(after: "--accent") { prefs.accent = a }
             if let m = argument(after: "--mode") { prefs.mode = m }
@@ -104,10 +106,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let shot { screenshot(to: shot); return }
 
         let files = launchFiles
+        // The tabs of the last session (File → Reopen Tabs at Start) and the files asked for, a tab each (Tabs.swift).
+        let start = Tabs.startList(files)
         if Instance.isDedicated {
-            if files.isEmpty, let h = Instance.home, FileManager.default.fileExists(atPath: h) { open(URL(fileURLWithPath: h), from: nil) }
-            else if files.isEmpty { newWindow() }
-            else { files.forEach { open($0, from: nil) } }
+            if !start.urls.isEmpty { openAll(start.urls, show: start.show) }
+            else if let h = Instance.home, FileManager.default.fileExists(atPath: h) { open(URL(fileURLWithPath: h), from: nil) }
+            else { newWindow() }
+            files.filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }.forEach { open($0, from: nil) }
             offerRecovery()
             return
         }
@@ -121,16 +126,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         up.displayName = "Vigía"
         up.repo = appRepo
         up.version = appVersion
-        up.language = { Prefs.shared.lang == "es" ? "es" : "en" }
+        up.language = { Prefs.shared.lang }
         up.cleanUpAtStart()
         DispatchQueue.main.asyncAfter(deadline: .now() + 10) { up.checkDaily() }
-        if files.isEmpty {
+        if start.urls.isEmpty {
             let d = newWindow()
             // Until a file of one's own has been opened, the app starts on the sample.
-            if !prefs.sampleShown || prefs.recent.isEmpty { prefs.sampleShown = true; openSample(in: d) }
+            if files.isEmpty && (!prefs.sampleShown || prefs.recent.isEmpty) { prefs.sampleShown = true; openSample(in: d) }
         } else {
-            files.forEach { open($0, from: nil) }
+            openAll(start.urls, show: start.show)
         }
+        // folders asked for go to the Files panel
+        files.filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }.forEach { open($0, from: nil) }
         offerRecovery()
     }
 
@@ -196,7 +203,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ s: NSApplication) -> Bool { true }
 
-    func applicationWillTerminate(_ n: Notification) { SelfUpdate.shared.finishIfStaged() }
+    func applicationWillTerminate(_ n: Notification) {
+        Tabs.saveNow()
+        prefs.keepTabsForUpdate(Tabs.files().files)
+        SelfUpdate.shared.finishIfStaged()
+    }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         let dirty = DocWindow.all.filter { $0.model.dirty }
@@ -248,18 +259,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return r
     }
 
-    /// Opens a file: brings its window forward if it is open, else uses `from` (or an empty
-    /// untitled window) or a new one.
-    func open(_ url: URL, from doc: DocWindow?) {
+    /// Opens a file, as on Windows since 3.2.0: the tab that already has it is shown; otherwise it goes into the
+    /// tab of `from` (or the shown one) when nobody typed in it, or into a new tab next to it. `inNewWindow`: a
+    /// window of its own instead.
+    func open(_ url: URL, from doc: DocWindow?, inNewWindow: Bool = false) {
         let url = url.standardizedFileURL
         var isDir: ObjCBool = false
         if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue {
             addFolder(url); return
         }
-        if let open = DocWindow.all.first(where: { $0.model.path == url }) { open.window?.makeKeyAndOrderFront(nil); return }
-        let target = doc ?? DocWindow.all.first { $0.isEmptyUntitled } ?? newWindow()
-        target.open(url)
-        target.window?.makeKeyAndOrderFront(nil)
+        if let open = DocWindow.all.first(where: { $0.filePath == url }) { show(open); return }
+        let here = doc ?? current
+        let target: DocWindow
+        if inNewWindow || here == nil { target = newWindow() }
+        else if let h = here, h.isPristine { target = h }
+        else { target = newTab(after: here) }
+        target.openFresh(url)
+        show(target)
     }
 
     func openPanel() {
@@ -268,7 +284,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         p.allowsMultipleSelection = true
         if let d = current?.model.path?.deletingLastPathComponent() { p.directoryURL = d }
         guard p.runModal() == .OK else { return }
-        p.urls.forEach { open($0, from: nil) }
+        if p.urls.count == 1 { open(p.urls[0], from: nil) } else { openAll(p.urls.map(\.standardizedFileURL), show: p.urls.count - 1) }
     }
 
     func pickFolder() {
@@ -293,14 +309,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// The sample opens as an untitled copy, so the installed file is never overwritten.
     func openSample(in doc: DocWindow? = nil) {
         guard let p = AppDelegate.samplePath, let text = try? String(contentsOf: p, encoding: .utf8) else { return }
-        let d = doc ?? (current?.isEmptyUntitled == true ? current! : newWindow())
+        let d = doc ?? (current?.isPristine == true ? current! : newTab())
         let go = { Task { @MainActor in await d.loadText(text, sample: true) } }
         if d.model.ready { _ = go() } else { d.onReady = { _ = go() } }
     }
 
     func openManual() {
-        let name = prefs.lang == "es" ? "Vigia-manual-es" : "Vigia-manual-en"
-        if let u = Bundle.main.url(forResource: name, withExtension: "pdf", subdirectory: "docs") { NSWorkspace.shared.open(u) }
+        let u = Bundle.main.url(forResource: "Vigia-manual-" + prefs.lang, withExtension: "pdf", subdirectory: "docs")
+            ?? Bundle.main.url(forResource: "Vigia-manual-en", withExtension: "pdf", subdirectory: "docs")
+        if let u { NSWorkspace.shared.open(u) }
     }
 
     func showTheme() {
@@ -347,7 +364,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let take = a.runModal() == .alertFirstButtonReturn
             try? fm.removeItem(at: f)
             guard take else { continue }
-            let doc = DocWindow.all.first { $0.isEmptyUntitled } ?? newWindow()
+            let doc = current?.isPristine == true ? current! : newTab()
             let go = {
                 Task { @MainActor in
                     if !path.isEmpty, fm.fileExists(atPath: path) { await doc.load(URL(fileURLWithPath: path)) }
@@ -414,6 +431,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return top
     }
 
+    /// File → Reopen Tabs at Start.
+    private func restoreTabsItem() -> NSMenuItem {
+        let i = item(L("RestoreTabs"), on: { [weak self] in self?.prefs.restoreTabs == true }) { [weak self] in self?.toggleRestoreTabs() }
+        i.toolTip = L("RestoreTabsTip")
+        return i
+    }
+
     /// File → Folders at start: the same three choices as the ⋯ menu of the Files panel.
     private func startupItem() -> NSMenuItem {
         let sub = NSMenu(title: L("StartupMenu"))
@@ -474,12 +498,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         bar.addItem(top(L("File"), [
+            item(L("NewTab"), key: "t") { [weak self] in self?.newTab() },
             item(L("New"), key: "n") { [weak self] in self?.newWindow() },
             item(L("Open"), key: "o") { [weak self] in self?.openPanel() },
             recentItem,
+            item(L("TabReopen"), key: "t", mods: [.command, .shift]) { [weak self] in self?.reopenClosedTab() },
             item(L("OpenDir"), key: "o", mods: [.command, .shift]) { [weak self] in self?.pickFolder() },
             item(L("CloseDir")) { [weak self] in self?.prefs.folders = [] },
             startupItem(),
+            restoreTabsItem(),
             .separator(),
             item(L("CloseWindow"), key: "w") { NSApp.keyWindow?.performClose(nil) },
             item(L("Save"), key: "s", doc { d in Task { await d.save(as: false) } }),
@@ -563,20 +590,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             item(L("ThemeMenu")) { [weak self] in self?.showTheme() },
         ]))
 
-        bar.addItem(top(L("Language"), [
-            item("English", on: { [weak self] in self?.prefs.lang == "en" }) { [weak self] in self?.prefs.lang = "en" },
-            item("Español", on: { [weak self] in self?.prefs.lang == "es" }) { [weak self] in self?.prefs.lang = "es" },
-        ]))
+        bar.addItem(top(L("Language"), Prefs.languages.map { code, name in
+            item(name, on: { [weak self] in self?.prefs.lang == code }) { [weak self] in self?.prefs.lang = code }
+        }))
 
         let window = top(L("Window"), [
             item(L("Minimize"), key: "m") { NSApp.keyWindow?.miniaturize(nil) },
             item(L("ZoomWindow")) { NSApp.keyWindow?.zoom(nil) },
-        ])
+            .separator(),
+        ] + tabMenuItems())
         bar.addItem(window)
         let help = top(L("Help"), [
             item(L("Manual"), key: "?") { [weak self] in self?.openManual() },
             item(L("Guide")) {
-                let page = Prefs.shared.lang == "es" ? "es" : "en"
+                let page = Prefs.shared.lang
                 NSWorkspace.shared.open(URL(string: "https://docs.github.com/\(page)/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax")!)
             },
             item(L("Sample")) { [weak self] in self?.openSample() },

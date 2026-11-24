@@ -3,7 +3,7 @@
 <h1 align="center">Vigía</h1>
 <p align="center"><b>Write Markdown visually. See it like GitHub.</b></p>
 
-Gabriel Castiglia · November 21, 2026 · version 3.1.0 · GPL-2.0-only
+Gabriel Castiglia · November 24, 2026 · version 3.2.0 · GPL-2.0-only
 
 Until version 2.2.1 it was called Gryphmark: installing Vigía removes it, and its settings, dedicated instances
 and recovery drafts come over the first time Vigía starts.
@@ -18,7 +18,7 @@ PDF manual: [`docs/Vigia-manual-en.pdf`](docs/Vigia-manual-en.pdf)
 
 Vigía is a Markdown viewer and editor for the Mac. You format with buttons (headings, bold, lists, tables,
 code) and Vigía writes the Markdown tags for you; the GitHub view shows the document exactly as GitHub does,
-in light or dark. The interface is in English and Spanish.
+in light or dark. The interface is in English, Spanish and Japanese ([日本語](README.ja.md)).
 
 ## Live reload
 
@@ -40,7 +40,7 @@ you have unsaved changes, Vigía asks before replacing them.
 
 Download `Vigia-<version>.pkg` from the
 [releases page](https://github.com/Gabriel-Castiglia/vigia/releases/latest) and open it. The installer speaks
-English or Spanish, following the language of the Mac. It puts `Vigia.app` in `/Applications`, closing a
+English, Spanish or Japanese, following the language of the Mac. It puts `Vigia.app` in `/Applications`, closing a
 running copy first; installing a newer package keeps the settings.
 
 The package is not signed with an Apple Developer ID, so the first time macOS refuses to open it ("Apple
@@ -49,7 +49,7 @@ could not verify…"). Open System Settings → Privacy & Security, scroll to th
 check the download first:
 
 ```
-shasum -a 256 Vigia-3.1.0.pkg
+shasum -a 256 Vigia-3.2.0.pkg
 ```
 
 Vigía can open Markdown files from the Finder (right-click → Open With → Vigía) without taking them over
@@ -60,6 +60,18 @@ and, to remove the settings too, run `defaults delete io.github.gabriel-castigli
 
 - Three views of the same document (⌘1, ⌘2, ⌘3): Visual, the formatted document you edit with the buttons;
   Markdown, the source with a live preview beside it; GitHub, read only, as github.com will show it.
+- Tabs: each file opens in a tab of its own, which keeps its undo history, cursor and scroll position while
+  another one is shown. Opening a file shows the tab that already has it, or opens it in a new tab next to the shown
+  one; an untitled tab nobody typed in, or the sample as it came, takes the file instead. A click in the Files panel,
+  a link to another Markdown file and the files dropped on the window open the same way, and several files chosen
+  together in File → Open… open a tab each. ⌘T opens an untitled tab and ⌘W closes one, asking about its unsaved
+  changes; ⌃⇥ and ⌃⇧⇥ switch tabs, and ⇧⌘T (File → Reopen Closed Tab) brings back the last one closed. They are the
+  tabs of macOS: drag one along the tab bar to reorder it, or out of the window to give it a window of its own; the
+  Window menu moves a tab to a new window, merges all the windows and shows all the tabs. ⌘N still opens a new window,
+  and right-click → *Open in new window* in the Files panel too. With File → Reopen Tabs at Start on (off by default),
+  the next start opens the same files again with the same tab in front. The list is written as the tabs change, so
+  it survives a crash; untitled documents are not kept, and a file that is gone by then is left out. An update that
+  installs itself opens every tab again.
 - Edit or Read only (⇧⌘L): read only locks the text so nothing changes by mistake; you can still select, copy,
   find and switch views.
 - The toolbar and the Format menu: headings, bold, italic, strikethrough, inline code, lists, task lists,
@@ -109,7 +121,14 @@ and, to remove the settings too, run `defaults delete io.github.gabriel-castigli
 - The folders of the Files panel: each one has its own colour (tones of the theme colour, multicolour or none, or one
   chosen by hand), and can be pinned to the top, moved up and down or closed (right-click its name). The ⋯ button
   orders them (order opened, by name or recently modified first) and sets what opens at start: the folders of the
-  last session, none, or only the pinned ones (also File → Folders at start).
+  last session, none, or only the pinned ones (also File → Folders at start). The button of the panel header with
+  two arrows collapses every folder while any is open, and expands them all, every level, when everything is closed;
+  its icon and tooltip say which, and the ⋯ menu has the same command. Expanding stops after 1,500 folders, so a
+  tree as big as a whole disk does not hold the window.
+- Language menu: English, Spanish or Japanese, switched at once in every window, the editor's own menus included.
+  The first start follows the language of the Mac. With a Japanese text the status line counts words with the
+  system's word breaker, since Japanese has no spaces between them, and Help → Markdown guide opens GitHub's page in
+  the language of the interface.
 - Convert to TXT: right-click a file in the Files panel. A .txt is written next to it, as the document reads in the
   GitHub view (headings, lists, tables and links in plain text); the Markdown file is not changed.
 - Find and replace (⌘F, ⌥⌘F, ⌘G), zoom (⌘+, ⌘−, ⌘0, or the slider of the status line), spell check, export to a self-contained HTML page (⌘E),
@@ -196,7 +215,7 @@ jsdiff 9.0.0, DOMPurify 3.4.17, github-markdown-css 5.8.1, gemoji 8.1.0.
 | `Sources/` | The app (Swift, AppKit, SwiftUI and WebKit) |
 | `web/` | The editor page and its libraries, shared with the Windows version |
 | `_npm/` | The web dependencies and the esbuild entry |
-| `samples/` | The sample document, in English and Spanish |
+| `samples/` | The sample document, in English, Spanish and Japanese |
 | `assets/`, `icono/` | The lighthouse icon and its twelve colours |
 | `instalador/` | The pages and the script of the installer package |
 | `scripts/` | Build, package, web bundle, manuals and pictures |

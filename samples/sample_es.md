@@ -65,6 +65,10 @@ $$
 
 Abrí una carpeta entera con **Archivo → Abrir carpeta…** y sus archivos Markdown aparecen en un árbol a la izquierda, como en VS Code u Obsidian. Podés abrir varias carpetas, y debajo aparece el índice del documento abierto. Clic en un archivo para abrirlo; `⇧⌘E` muestra u oculta la barra lateral.
 
+## Pestañas
+
+Cada archivo se abre en su propia pestaña. `⌘T` abre una nueva, `⌃⇥` cambia de pestaña y `⌘W` cierra una. Activá **Archivo → Reabrir las pestañas al iniciar** y el próximo arranque vuelve a abrir los mismos archivos.
+
 ---
 
 Este ejemplo se abre solo la primera vez. Siempre lo podés volver a abrir desde **Ayuda → Documento de ejemplo**.

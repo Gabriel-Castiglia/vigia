@@ -309,6 +309,38 @@ final class TreeState: ObservableObject {
     }
 
     static func canonical(_ path: String) -> String { URL(fileURLWithPath: path).resolvingSymlinksInPath().path }
+
+    /// Expanding stops after this many folders, so a tree as big as a whole disk does not hold the window.
+    static let expandCap = 1500
+
+    /// Every folder of the tree under the panel folders, named as the tree names them, at most `expandCap`.
+    static func allFolders(_ roots: [String]) -> (ids: Set<String>, capped: Bool) {
+        var out = Set<String>()
+        var queue = roots.map { FileNode(url: URL(fileURLWithPath: $0), isFolder: true) }
+        var i = 0
+        while i < queue.count {
+            for c in queue[i].children ?? [] where c.isFolder {
+                if out.count >= expandCap { return (out, true) }
+                if out.insert(c.id).inserted { queue.append(c) }
+            }
+            i += 1
+        }
+        return (out, false)
+    }
+
+    /// The button of the Files panel: collapses every folder while any is open, and expands them all, every
+    /// level, when everything is closed. The disk is read off the main thread.
+    func toggleAll(roots: [String], doc: DocWindow?) {
+        if !open.isEmpty { open = []; return }
+        DispatchQueue.global(qos: .userInitiated).async {
+            let r = TreeState.allFolders(roots)
+            DispatchQueue.main.async {
+                guard self.open.isEmpty else { return }
+                self.open = r.ids
+                if r.capped { doc?.flash(L("ExpandCapped", TreeState.expandCap)) }
+            }
+        }
+    }
 }
 
 /// One sidebar: one pane, or both one above the other or side by side, in the order of Prefs.outlineFirst.
@@ -374,7 +406,14 @@ struct Sidebar: View {
     private var files: some View {
         VStack(spacing: 0) {
             HStack {
-                HStack { Text(L("FilesTitle")).font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary); Spacer(minLength: 4) }
+                // the title whole or not at all: next to the buttons a narrow panel showed only "FI…"
+                HStack {
+                    ViewThatFits(in: .horizontal) {
+                        Text(L("FilesTitle")).font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary).fixedSize()
+                        Color.clear.frame(width: 0, height: 1)
+                    }
+                    Spacer(minLength: 4)
+                }
                     .modifier(PaneGrip(pane: .files, dock: dock))
                 // renames and moves of the tree: undo, redo, and the padlock that allows dragging (FileOps)
                 Button { Task { await ops.undo(doc: doc) } } label: { Image(systemName: "arrow.uturn.backward") }
@@ -386,13 +425,16 @@ struct Sidebar: View {
                 Button { prefs.treeLocked.toggle() } label: { Image(systemName: prefs.treeLocked ? "lock" : "lock.open") }
                     .buttonStyle(.borderless).help(L(prefs.treeLocked ? "TreeLockedTip" : "TreeUnlockedTip"))
                     .accessibilityIdentifier("treeLock")
-                Button { tree.open = [] } label: { Image(systemName: "chevron.up.chevron.down") }
-                    .buttonStyle(.borderless).help(L("CollapseAll"))
+                Button { tree.toggleAll(roots: prefs.folders, doc: doc) } label: {
+                    Image(systemName: tree.open.isEmpty ? "rectangle.expand.vertical" : "rectangle.compress.vertical")
+                }
+                .buttonStyle(.borderless).help(L(tree.open.isEmpty ? "ExpandAll" : "CollapseAll"))
+                .accessibilityIdentifier("treeExpand")
                 Button { tree.tick += 1 } label: { Image(systemName: "arrow.clockwise") }
                     .buttonStyle(.borderless).help(L("Refresh"))
                 Button { (NSApp.delegate as? AppDelegate)?.pickFolder() } label: { Image(systemName: "folder.badge.plus") }
                     .buttonStyle(.borderless).help(L("FolderAdd"))
-                FolderOptionsMenu(prefs: prefs, tree: tree)
+                FolderOptionsMenu(prefs: prefs, tree: tree, doc: doc)
             }
             .padding(.horizontal, 10).padding(.top, 8).padding(.bottom, 4)
             if prefs.folders.isEmpty {
@@ -547,7 +589,7 @@ struct FolderHeader: View {
                 checkItem(L("FolderColorAuto"), prefs.folderColorMap[dir] == nil) { prefs.folderColorMap[dir] = nil }
                 Divider()
                 ForEach(Prefs.folderHues, id: \.hue) { c in
-                    checkItem(prefs.lang == "es" ? c.es : c.en, prefs.folderColorMap[dir] == c.hue, image: swatch(c.hue, dark: prefs.dark)) {
+                    checkItem(Prefs.pick(c.en, c.es, c.ja), prefs.folderColorMap[dir] == c.hue, image: swatch(c.hue, dark: prefs.dark)) {
                         prefs.folderColorMap[dir] = c.hue
                     }
                 }
@@ -572,6 +614,7 @@ struct FolderHeader: View {
 struct FolderOptionsMenu: View {
     @ObservedObject var prefs: Prefs
     @ObservedObject var tree: TreeState
+    var doc: DocWindow? = nil
 
     var body: some View {
         Menu {
@@ -594,7 +637,7 @@ struct FolderOptionsMenu: View {
             checkItem(L("RecentPanelMenu"), prefs.recentPanel) { prefs.recentPanel.toggle() }
             Divider()
             Button(L("FolderAdd")) { (NSApp.delegate as? AppDelegate)?.pickFolder() }
-            Button(L("CollapseAll")) { tree.open = [] }
+            Button(L(tree.open.isEmpty ? "ExpandAll" : "CollapseAll")) { tree.toggleAll(roots: prefs.folders, doc: doc) }
             Button(L("FolderCloseAll")) { prefs.folders = [] }.disabled(prefs.folders.isEmpty)
         } label: { Image(systemName: "ellipsis.circle") }
             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().help(L("FolderOptions"))
@@ -724,7 +767,7 @@ struct FileRow: View {
                 Divider()
                 if !node.isFolder {
                     Button(L("FileOpen")) { (NSApp.delegate as? AppDelegate)?.open(node.url, from: doc) }
-                    Button(L("OpenNewWindow")) { (NSApp.delegate as? AppDelegate)?.open(node.url, from: nil) }
+                    Button(L("OpenNewWindow")) { (NSApp.delegate as? AppDelegate)?.open(node.url, from: nil, inNewWindow: true) }
                 }
                 Button(L("OpenFolder")) { NSWorkspace.shared.activateFileViewerSelecting([node.url]) }
                 Button(L("OpenDedicated")) { (NSApp.delegate as? AppDelegate)?.openDedicated(node.url, from: doc) }

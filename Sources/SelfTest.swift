@@ -149,7 +149,8 @@ enum SelfTest {
         defer { try? fm.removeItem(at: tmp) }
 
         // Texts: both languages present and filled.
-        check("strings: every text in both languages", STRINGS.values.allSatisfy { $0.count == 2 && !$0[0].isEmpty && !$0[1].isEmpty })
+        check("strings: every text in the three languages", STRINGS.values.allSatisfy { $0.count == 3 && $0.allSatisfy { !$0.isEmpty } },
+              STRINGS.filter { $0.value.count != 3 || $0.value.contains { $0.isEmpty } }.keys.sorted().joined(separator: ", "))
         check("theme: sky blue is the default colour, and an unknown one falls back to it",
               Prefs().accent == "sky" && Accent.get("nope").key == "sky")
 
@@ -529,6 +530,7 @@ enum SelfTest {
         await picturesFilesLayouts(d, tmp)
         await searchAndPicker(d, tmp)
         await dedicated(tmp)
+        await tabsAndJapanese(d, tmp)
 
         // Export.
         await d.loadText("# Exported\n\nA paragraph with `code`.\n\n<script>alert(1)</script>\n", sample: false)
@@ -547,6 +549,156 @@ enum SelfTest {
         FileHandle.standardError.write(Data((failures == 0 ? "self-test: all passed\(skips)\n" : "self-test: \(failures) failed\(skips)\n").utf8))
         try? fm.removeItem(at: tmp)
         exit(failures == 0 ? 0 : 1)
+    }
+
+    // 3.2.0, as on Windows. Tabs: a file opens in a new tab next to the shown one, or in the shown tab when nobody
+    // typed in it; a file already open shows its tab; the tabs of a session and the files asked for, in order;
+    // the closed tab comes back; an untitled tab with changes asks before closing; the tab commands of the Window
+    // menu are ours, once each. Expand all. The interface and the editor in Japanese.
+    @MainActor
+    private static func tabsAndJapanese(_ d: DocWindow, _ tmp: URL) async {
+        let fm = FileManager.default
+        let app = NSApp.delegate as! AppDelegate
+        let dir = tmp.appendingPathComponent("tabs", isDirectory: true)
+        try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        let files = ["one", "two", "three"].map { n -> URL in
+            let u = dir.appendingPathComponent(n + ".md").standardizedFileURL
+            try? Data("# \(n)\n\nText of \(n).\n".utf8).write(to: u)
+            return u
+        }
+        // a window of its own for the tabs, so that closing them never closes d
+        let host = app.newWindow()
+        _ = await wait(10) { host.model.ready }
+        await host.loadText("typed here", sample: false)
+        host.model.dirty = true
+        let before = DocWindow.all.count
+        app.open(files[0], from: host)
+        app.open(files[1], from: host)
+        let loaded = await wait(10) { files[0 ... 1].allSatisfy { f in DocWindow.all.contains { $0.model.path == f } } }
+        let group = host.window?.tabbedWindows?.compactMap { $0.windowController as? DocWindow } ?? []
+        check("tabs: files open in new tabs of the same window, each next to the shown one",
+              loaded && DocWindow.all.count == before + 2 && group.map { $0.filePath } == [nil, files[0], files[1]],
+              "\(DocWindow.all.count - before) new, group \(group.map { $0.filePath?.lastPathComponent ?? "untitled" })")
+        app.open(files[0], from: host)
+        check("tabs: a file already open shows its tab, no new one",
+              DocWindow.all.count == before + 2 && host.window?.tabGroup?.selectedWindow?.windowController as? DocWindow === group.first { $0.filePath == files[0] })
+        let blank = app.newTab(after: host)
+        _ = await wait(10) { blank.model.ready }
+        app.open(files[2], from: blank)
+        let intoBlank = await wait(10) { blank.model.path == files[2] }
+        check("tabs: an untitled tab nobody typed in takes the file", intoBlank && DocWindow.all.count == before + 3, blank.filePath?.path ?? "-")
+        let order = Tabs.files().files
+        check("tabs: the session lists the files in the order of the tabs, untitled left out",
+              Array(order.suffix(3)) == [files[0].path, files[1].path, files[2].path] || order.contains(files[2].path) && order.firstIndex(of: files[0].path)! < order.firstIndex(of: files[1].path)!,
+              order.map { URL(fileURLWithPath: $0).lastPathComponent }.joined(separator: " "))
+        // the page's own keys: Ctrl+Tab goes to the next tab of the window
+        let shownBefore = host.window?.tabGroup?.selectedWindow
+        (shownBefore?.windowController as? DocWindow)?.command("nexttab")
+        check("tabs: the next-tab command shows another tab", host.window?.tabGroup?.selectedWindow !== shownBefore)
+        // closed and reopened
+        if let two = DocWindow.all.first(where: { $0.model.path == files[1] }) { two.window?.performClose(nil) }
+        _ = await wait(3) { !DocWindow.all.contains { $0.model.path == files[1] } }
+        check("tabs: a closed tab is remembered", Tabs.closed.last == files[1], Tabs.closed.last?.path ?? "-")
+        app.reopenClosedTab()
+        let back = await wait(10) { DocWindow.all.contains { $0.model.path == files[1] } }
+        check("tabs: Reopen Closed Tab brings it back", back)
+        // an untitled tab with changes asks before it closes; Cancel keeps it
+        let typed = app.newTab(after: host)
+        _ = await wait(10) { typed.model.ready }
+        typed.model.dirty = true
+        typed.window?.performClose(nil)
+        let asked = await wait(3) { SelfTest.asking }
+        SelfTest.answer(.alertSecondButtonReturn)
+        try? await Task.sleep(nanoseconds: 300_000_000)
+        check("tabs: closing a tab with changes asks, and Cancel keeps it", asked && DocWindow.all.contains { $0 === typed })
+        typed.model.dirty = false
+        // the session at start: the saved tabs that still exist, then the files asked for, the last one shown
+        let p = Prefs.shared
+        let saved = (p.restoreTabs, p.openTabs, p.activeTab)
+        p.restoreTabs = true
+        p.openTabs = [files[0].path, dir.appendingPathComponent("gone.md").path, files[1].path]
+        p.activeTab = 1
+        let s1 = Tabs.startList([]), s2 = Tabs.startList([files[2], files[0]])
+        check("tabs: at start, the saved tabs that still exist, the shown one kept",
+              s1.urls == [files[0], files[1]] && s1.show == 1, "\(s1.urls.map(\.lastPathComponent)) \(s1.show)")
+        check("tabs: files asked for at start are added, the last one shown",
+              s2.urls == [files[0], files[1], files[2]] && s2.show == 0, "\(s2.urls.map(\.lastPathComponent)) \(s2.show)")
+        p.restoreTabs = false
+        check("tabs: off, nothing is reopened", Tabs.startList([]).urls.isEmpty)
+        // what is written as the tabs change: the files in order and the shown one; off, nothing
+        let own = Prefs()
+        own.persist = false
+        own.restoreTabs = true
+        // the window in front is the one with the tabs; its shown tab, "one", is the session's shown one
+        if let one = DocWindow.all.first(where: { $0.model.path == files[0] }) { app.show(one) }
+        Tabs.saveNow(own, force: true, front: host)
+        let wrote = own.openTabs.filter { $0.hasPrefix(dir.path) }
+        check("tabs: the session written as the tabs change, with the shown tab",
+              wrote.count == 3 && own.openTabs.indices.contains(own.activeTab) && own.openTabs[own.activeTab] == files[0].path,
+              "\(own.openTabs.map { URL(fileURLWithPath: $0).lastPathComponent }) shown \(own.activeTab)")
+        own.restoreTabs = false
+        Tabs.saveNow(own, force: true)
+        check("tabs: off, the session is forgotten", own.openTabs.isEmpty && own.activeTab == 0)
+        (p.restoreTabs, p.openTabs, p.activeTab) = saved
+        // the Window menu: our tab commands, each once (AppKit adds its own, in the Mac's language, when none is there)
+        let saveLang = p.lang
+        p.lang = "ja"
+        app.buildMenus()
+        NSApp.mainMenu?.items.forEach { $0.submenu?.update() }
+        func all(_ m: NSMenu?) -> [NSMenuItem] { (m?.items ?? []).flatMap { [$0] + all($0.submenu) } }
+        let items = all(NSApp.mainMenu)
+        let actions: [Selector] = [#selector(NSWindow.selectNextTab(_:)), #selector(NSWindow.selectPreviousTab(_:)),
+                                   #selector(NSWindow.moveTabToNewWindow(_:)), #selector(NSWindow.mergeAllWindows(_:)),
+                                   #selector(NSWindow.toggleTabOverview(_:)), #selector(NSWindow.toggleTabBar(_:))]
+        let counts = actions.map { a in items.filter { $0.action == a }.count }
+        let bar = items.first { $0.action == #selector(NSWindow.toggleTabBar(_:)) }?.title ?? "-"
+        check("tabs: the Window menu has each tab command once", counts == [1, 1, 1, 1, 1, 1], "\(counts)")
+        check("japanese: the menus in Japanese, the tab bar item too",
+              items.contains { $0.title == "ファイル" } && [L("TabBarShow"), L("TabBarHide")].contains(bar), bar)
+        // the editor in Japanese: TOAST UI's own texts, and the words of a text without spaces
+        await d.applyLanguage()
+        await d.loadText("日本語の文章を数えます。もう一つの文。", sample: false)
+        // TOAST UI's own texts show in the menu of a table cell
+        let keepMode = Prefs.shared.mode
+        d.setMode("visual")
+        await d.loadText("| a | b |\n|---|---|\n| 1 | 2 |\n", sample: false)
+        _ = await wait(3) { ((await d.web.call("return document.querySelectorAll('.toastui-editor-ww-container td').length") as? Int) ?? 0) > 0 }
+        let label = (await d.web.call("""
+            const td = document.querySelector('.toastui-editor-ww-container td');
+            const r = td.getBoundingClientRect();
+            td.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.left + 2, clientY: r.top + 2 }));
+            await new Promise(f => setTimeout(f, 100));
+            const m = document.querySelector('.toastui-editor-context-menu');
+            const t = m ? m.textContent : '';
+            document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+            return t;
+            """) as? String) ?? ""
+        d.setMode(keepMode)
+        let words = (await d.web.call("return mdApp.words()") as? Int) ?? 0
+        check("japanese: the editor's own texts (the menu of a table cell)", label.range(of: "[\\u3040-\\u30ff\\u4e00-\\u9fff]", options: .regularExpression) != nil, label)
+        check("japanese: a text without spaces counts its words", words > 3, "\(words)")
+        check("japanese: colours and folder colours", Accent.get("sky").name == "スカイブルー" && Prefs.pick("a", "b", "c") == "c")
+        p.lang = saveLang
+        app.buildMenus()
+        await d.applyLanguage()
+        check("japanese: a language it does not know is English", Prefs.language("xx") == "en" && Prefs.language("ja") == "ja")
+        // Expand all: every folder of the tree, every level, as the tree names them
+        let tree = dir.appendingPathComponent("tree", isDirectory: true)
+        for sub in ["a/b", "a/c", "d"] { try? fm.createDirectory(at: tree.appendingPathComponent(sub), withIntermediateDirectories: true) }
+        for f in ["a/b/x.md", "a/c/y.md", "d/z.md", "a/w.md"] { try? Data("# x\n".utf8).write(to: tree.appendingPathComponent(f)) }
+        let found = TreeState.allFolders([tree.path])
+        let want: Set<String> = Set(["a", "a/b", "a/c", "d"].map { TreeState.canonical(tree.appendingPathComponent($0).path) })
+        check("files: Expand all opens every folder, every level", Set(found.ids.map(TreeState.canonical)) == want && !found.capped,
+              found.ids.sorted().joined(separator: " "))
+        // the close button of a window with tabs (measured: how many of its tabs it closes)
+        let groupNow = host.window?.tabbedWindows?.count ?? 1
+        for x in DocWindow.all where x !== d { x.model.dirty = false }
+        (host.window?.tabGroup?.selectedWindow ?? host.window)?.standardWindowButton(.closeButton)?.performClick(nil)
+        try? await Task.sleep(nanoseconds: 300_000_000)
+        let left = DocWindow.all.filter { $0 !== d }.count
+        FileHandle.standardError.write(Data("info tabs: the close button of a window with \(groupNow) tabs left \(left) of them\n".utf8))
+        for x in DocWindow.all where x !== d { x.close() }
+        _ = await wait(3) { DocWindow.all.count == 1 }
     }
 
     // Two panel folders, as the wiki of indices and memories: indices/home.md and memories/topic/a.md.
