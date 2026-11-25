@@ -287,6 +287,8 @@ final class TreeState: ObservableObject {
     @Published var open: Set<String> = []
     @Published var tick = 0
     private var revealed: String?     // the file last revealed: a folder closed by hand afterwards stays closed
+    /// Files opened from Favourites: reveal leaves the tree alone for them (canonical paths).
+    static var noReveal = Set<String>()
 
     /// Opens every folder from the panel folder that holds the file down to it, once per file. Paths are compared
     /// with symbolic links resolved (/tmp and /private/tmp are the same folder), and the folders are named as the
@@ -294,7 +296,7 @@ final class TreeState: ObservableObject {
     func reveal(_ file: URL?, roots: [String]) {
         guard let file else { return }
         let path = TreeState.canonical(file.path)
-        guard path != revealed else { return }
+        guard path != revealed, !TreeState.noReveal.contains(path) else { return }
         revealed = path
         let match = roots.map { r -> (String, String) in
             let root = r.count > 1 && r.hasSuffix("/") ? String(r.dropLast()) : r
@@ -503,7 +505,7 @@ struct Sidebar: View {
 
     private func show(_ path: URL?, _ proxy: ScrollViewProxy) {
         tree.reveal(path, roots: prefs.folders)
-        guard let id = path.map({ TreeState.canonical($0.path) }) else { return }
+        guard let id = path.map({ TreeState.canonical($0.path) }), !TreeState.noReveal.contains(id) else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { proxy.scrollTo(id, anchor: .center) }
     }
 
@@ -730,8 +732,18 @@ struct FileRow: View {
             .contentShape(Rectangle())
             .onTapGesture {
                 if missing { doc.flash(L("ItemGone")) }
-                else if !node.isFolder { (NSApp.delegate as? AppDelegate)?.open(node.url, from: doc) }
+                else if !node.isFolder {
+                    // opened from Favourites, the trees stay as they are (Gabriel, 25-nov-2026, on Windows 3.2.1);
+                    // from its folder, the panel follows it
+                    if inFavorites { TreeState.noReveal.insert(TreeState.canonical(node.url.path)) }
+                    else { TreeState.noReveal.remove(TreeState.canonical(node.url.path)) }
+                    (NSApp.delegate as? AppDelegate)?.open(node.url, from: doc, preview: true)
+                }
             }
+            // a double click keeps the passing tab the first click opened
+            .simultaneousGesture(TapGesture(count: 2).onEnded {
+                if !node.isFolder, let d = DocWindow.all.first(where: { $0.filePath == node.url.standardizedFileURL }) { d.preview = false }
+            })
             .modifier(TreeDragSource(url: node.url, enabled: !inFavorites && !inRecent && !prefs.treeLocked && !FileOps.isRoot(node.url)))
             .modifier(FavoriteDrag(path: node.url.path, enabled: inFavorites))
             // a drop goes into this folder, or into the folder of this file; on a favourite, another favourite takes its place

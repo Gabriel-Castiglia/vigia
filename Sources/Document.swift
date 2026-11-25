@@ -43,7 +43,7 @@ final class DocWindow: NSWindowController, NSWindowDelegate {
     private var diskText: String?            // the text last read from or written to disk
     private var askingReload = false
     private var lastEditSeq = 0               // the last edit the page reported (app.js editSeq)
-    private var saving = false
+    private(set) var saving = false
     private var autoSaveTimer: Timer?
     private var pendingOpen: URL?
     private var pendingExport: URL?
@@ -115,6 +115,7 @@ final class DocWindow: NSWindowController, NSWindowDelegate {
             if let w = m["words"] as? Int { model.words = w }
             if let n = m["seq"] as? Int { lastEditSeq = max(lastEditSeq, n) }
             if !model.dirty { model.dirty = true; updateTitle() }
+            preview = false   // typed in: no longer a passing tab
             scheduleAutoSave()
         case "outline":
             let items = (m["items"] as? [[String: Any]]) ?? []
@@ -142,6 +143,15 @@ final class DocWindow: NSWindowController, NSWindowDelegate {
                     await self?.web.call("mdApp.fileFound(n, u)", ["n": name, "u": f.map { Schemes.address(of: $0) as Any } ?? NSNull()])
                 } }
             }
+        case "spell":
+            // the page's unknown words, answered even when its tab is hidden (it marks them in the background)
+            let words = (m["words"] as? [String]) ?? []
+            Task { @MainActor in
+                let bad = await Spell.misspelled(words, prefs.spellLangs, own: Set(prefs.spellWords))
+                await web.call("mdApp.spellResult(w, b)", ["w": words, "b": bad])
+            }
+        case "spellMenu":
+            if let w = m["word"] as? String, !w.isEmpty { Spell.showMenu(for: w, in: self) }
         case "export": writeExport(m)
         case "printReady": printNow()
         case "crashed": web.view.reload()
@@ -216,9 +226,19 @@ final class DocWindow: NSWindowController, NSWindowDelegate {
 
     // MARK: title
 
+    /// A passing tab (File → Preview Tab for Files from the Panel): the next file clicked in the panel takes its place.
+    /// Typing in it, saving it under a name, or a double click on its file keeps it. Its name is in italics.
+    var preview = false { didSet { if preview != oldValue { updateTitle() } } }
+
     func updateTitle() {
         let name = model.path?.lastPathComponent ?? (model.isSample ? L("SampleTitle") : L("Untitled"))
         window?.title = Instance.profile.map { name + " — " + $0 } ?? name
+        if let tab = window?.tab {
+            tab.attributedTitle = preview
+                ? NSAttributedString(string: window?.title ?? name, attributes: [
+                    .font: NSFontManager.shared.convert(NSFont.systemFont(ofSize: NSFont.smallSystemFontSize), toHaveTrait: .italicFontMask)])
+                : nil
+        }
         window?.representedURL = model.path
         window?.isDocumentEdited = model.dirty
     }
@@ -347,9 +367,10 @@ final class DocWindow: NSWindowController, NSWindowDelegate {
         if model.bom { data.insert(contentsOf: [0xEF, 0xBB, 0xBF], at: 0) }
         do {
             diskText = disk
-            try data.write(to: target, options: .atomic)
+            try AtomicFile.write(data, to: target)   // a link stays a link; tags and permissions stay
             let moved = target != model.path
             model.path = target; model.isSample = false
+            preview = false
             model.dirty = lastEditSeq > seq     // typed while saving: still modified, and saved again shortly
             if model.dirty { scheduleAutoSave() }
             if moved {

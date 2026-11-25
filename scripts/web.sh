@@ -20,6 +20,8 @@ npm ci --silent
 W="$RAIZ/web/lib"
 mkdir -p "$W/fonts"
 npx esbuild entry.js --bundle --minify --format=iife --outfile="$W/bundle.js"
+# every highlight.js language, loaded only when a code block needs one bundle.js lacks (app.js runRareCode; 3.3.0)
+npx esbuild hljs-all.js --bundle --minify --format=iife --outfile="$W/hljs-all.js"
 # TOAST UI 3.2.2 reads the first row of a <tbody> without checking that there is one, so a table with an
 # empty <tbody> (pandoc writes one for every one-row table) threw and left the page blank. Patched here;
 # the build stops if the code it fixes is not found exactly once.

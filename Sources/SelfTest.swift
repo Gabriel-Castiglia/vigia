@@ -531,6 +531,7 @@ enum SelfTest {
         await searchAndPicker(d, tmp)
         await dedicated(tmp)
         await tabsAndJapanese(d, tmp)
+        await spellPreviewSave(d, tmp)
 
         // Export.
         await d.loadText("# Exported\n\nA paragraph with `code`.\n\n<script>alert(1)</script>\n", sample: false)
@@ -699,6 +700,139 @@ enum SelfTest {
         FileHandle.standardError.write(Data("info tabs: the close button of a window with \(groupNow) tabs left \(left) of them\n".utf8))
         for x in DocWindow.all where x !== d { x.close() }
         _ = await wait(3) { DocWindow.all.count == 1 }
+    }
+
+    // 3.3.1 (Windows 3.2.1 and 3.3.0 on the Mac): spell check in several languages with the voseo, the preview tab,
+    // undo after opening, tables whose cells end in inline HTML, the rare highlight languages, and a save that keeps
+    // links and extended attributes.
+    @MainActor
+    private static func spellPreviewSave(_ d: DocWindow, _ tmp: URL) async {
+        let fm = FileManager.default
+        let app = NSApp.delegate as! AppDelegate
+        let prefs = Prefs.shared
+        let dir = tmp.appendingPathComponent("v331", isDirectory: true)
+        try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        func file(_ name: String, _ text: String) -> URL {
+            let u = dir.appendingPathComponent(name).standardizedFileURL
+            try? Data(text.utf8).write(to: u)
+            return u
+        }
+
+        // spell check, without the page
+        let langs = ["en", "es", "es-UY", "ja"]
+        let bad = await Spell.misspelled(["hello", "mundo", "canción", "xqzwrt", "日本語", "tenés", "mirá", "decíselo", "don’t"], langs, own: [])
+        check("spell: several languages at once, Japanese never marked, the voseo known", bad == ["xqzwrt"], bad.joined(separator: ","))
+        let badEs = await Spell.misspelled(["tenés", "mirá"], ["es"], own: [])
+        check("spell: without es-UY the Mac's Spanish marks the voseo", badEs.count == 2, badEs.joined(separator: ","))
+        check("spell: suggestions", Spell.suggest("helo", langs).contains("hello"), Spell.suggest("helo", langs).joined(separator: ","))
+        check("spell: every language of the Mac can be chosen", Spell.available(chosen: langs).count > 10 && Spell.available(chosen: langs).prefix(4) == ArraySlice(langs))
+
+        // the page marks what the app reports; Ignore and Add to dictionary unmark it
+        let host = app.newWindow()
+        _ = await wait(10) { host.model.ready }
+        let wasLangs = prefs.spellLangs, wasSpell = prefs.spell
+        prefs.spellLangs = langs
+        Spell.setOn(true)
+        let spf = file("spell.md", "# Spell\n\nhello mundo tenés xqzwrt vbnmqp\n")
+        host.openFresh(spf)
+        let js = "return [...new Set(Array.from(document.querySelectorAll('.gm-misspelled')).map(e => e.dataset.word))].sort().join(',')"
+        func marked() async -> String { (await host.web.call(js) as? String) ?? "?" }
+        var ok = await wait(8) { await marked() == "vbnmqp,xqzwrt" }
+        var m = await marked()
+        check("spell: the page marks the unknown words only", ok, m)
+        Spell.accept("xqzwrt", permanent: false)
+        ok = await wait(4) { await marked() == "vbnmqp" }
+        m = await marked()
+        check("spell: Ignore unmarks the word", ok && Spell.session.contains("xqzwrt"), m)
+        Spell.accept("vbnmqp", permanent: true)
+        ok = await wait(4) { await marked() == "" }
+        m = await marked()
+        check("spell: Add to dictionary unmarks it and keeps it", ok && prefs.spellWords.contains("vbnmqp"), m)
+        Spell.setOn(false)
+        ok = await wait(3) { await marked() == "" }
+        let nativeOff = (await host.web.call("return Array.from(document.querySelectorAll('.ProseMirror')).every(e => e.getAttribute('spellcheck') === 'false')") as? Bool) == true
+        check("spell: off, nothing is marked, and the browser's own checker stays off", ok && nativeOff)
+        prefs.spellWords.removeAll { $0 == "vbnmqp" }; Spell.session.remove("xqzwrt")
+        prefs.spellLangs = wasLangs; Spell.setOn(wasSpell)
+
+        // undo right after opening must not empty the document
+        let und = file("undo.md", "# Undo\n\nkept text\n")
+        host.openFresh(und)
+        _ = await wait(8) { guard host.model.path == und else { return false }; return (await markdown(host)).contains("kept text") }
+        host.exec("undo")
+        try? await Task.sleep(nanoseconds: 300_000_000)
+        let afterUndo = await markdown(host)
+        check("undo: right after opening a file it takes nothing back", afterUndo.contains("kept text") && !host.model.dirty, afterUndo)
+
+        // a table whose cells end in inline HTML shows in the visual view
+        let tab = file("table.md", "# T\n\n| a | b |\n|---|---|\n| x <sub>L-02</sub> | y |\n| z <sub>L-03</sub> | w |\n")
+        host.setMode("visual")
+        host.openFresh(tab)
+        ok = await wait(8) { guard host.model.path == tab else { return false }; return (await markdown(host)).contains("L-03") }
+        let tableText = await markdown(host)
+        check("tables: cells that end in inline HTML show in the visual view", ok && host.model.words > 3, tableText)
+
+        // a code block in a language the page does not carry: highlighted once the full set loads
+        let rare = file("rare.md", "# R\n\n```fortran\nprogram hello\n  print *, 'hi'\nend program hello\n```\n")
+        host.setMode("preview")
+        host.openFresh(rare)
+        ok = await wait(8) { (await host.web.call("return !!document.querySelector('#preview code.language-fortran span[class^=hljs-]')") as? Bool) == true }
+        check("code: a rare language is highlighted (lib/hljs-all.js loads)", ok)
+        host.setMode("visual")
+
+        // how long a new tab takes until its page is ready (Windows 3.3.0 starts one ahead: 0.8 to 1.2 s there)
+        var times: [Int] = []
+        for _ in 0 ..< 3 {
+            let t0 = Date()
+            let nt = app.newTab(after: host)
+            _ = await wait(10) { nt.model.ready }
+            times.append(Int(Date().timeIntervalSince(t0) * 1000))
+            nt.close()
+        }
+        FileHandle.standardError.write(Data("info tabs: a new tab is ready in \(times.map { "\($0) ms" }.joined(separator: ", "))\n".utf8))
+
+        // the preview tab: a click in the panel reuses the passing tab; typing keeps it
+        let p1 = file("p1.md", "# P1\n"), p2 = file("p2.md", "# P2\n"), p3 = file("p3.md", "# P3\n")
+        let wasPreview = prefs.previewTab
+        prefs.previewTab = true
+        await host.loadText("typed here", sample: false); host.model.dirty = true
+        app.open(p1, from: host, preview: true)
+        _ = await wait(8) { DocWindow.all.contains { $0.model.path == p1 } }
+        let t1 = DocWindow.all.first { $0.model.path == p1 }
+        check("preview tab: a click in the panel opens a passing tab", t1?.preview == true)
+        let count = DocWindow.all.count
+        app.open(p2, from: host, preview: true)
+        ok = await wait(8) { t1?.model.path == p2 }
+        check("preview tab: the next click reuses it", ok && DocWindow.all.count == count && t1?.preview == true,
+              "\(DocWindow.all.count - count) more, \(t1?.model.path?.lastPathComponent ?? "-")")
+        await t1?.web.call("mdApp.setLocked(false); mdApp.focus(); mdApp.insertText('typed ')")
+        _ = await wait(3) { t1?.model.dirty == true }
+        check("preview tab: typing keeps it", t1?.preview == false)
+        app.open(p3, from: host, preview: true)
+        ok = await wait(8) { DocWindow.all.contains { $0.model.path == p3 } }
+        check("preview tab: a kept tab is not reused", ok && t1?.model.path == p2 && DocWindow.all.count == count + 1)
+        prefs.previewTab = wasPreview
+        for x in DocWindow.all where x !== d { x.model.dirty = false; x.close() }
+        _ = await wait(3) { DocWindow.all.count == 1 }
+
+        // a save keeps a link a link, and the extended attributes of the file
+        let real = file("real.md", "# Real\n"), link = dir.appendingPathComponent("link.md")
+        try? fm.createSymbolicLink(at: link, withDestinationURL: real)
+        _ = real.withUnsafeFileSystemRepresentation { p in setxattr(p!, "com.vigia.test", "1", 1, 0, 0) }
+        try? AtomicFile.write(Data("# Saved through the link\n".utf8), to: link)
+        let isLink = (try? fm.destinationOfSymbolicLink(atPath: link.path)) != nil
+        let text = (try? String(contentsOf: real, encoding: .utf8)) ?? ""
+        let attr = real.withUnsafeFileSystemRepresentation { p in getxattr(p!, "com.vigia.test", nil, 0, 0, 0) }
+        check("save: through a link the file is written and the link stays", isLink && text.contains("through the link"), text)
+        check("save: the extended attributes stay", attr == 1, "\(attr)")
+        let ro = file("ro.md", "# RO\n")
+        try? fm.setAttributes([.posixPermissions: 0o444], ofItemAtPath: ro.path)
+        var refused = false
+        do { try AtomicFile.write(Data("x".utf8), to: ro) } catch { refused = true }
+        check("save: a read-only file is refused, not replaced", refused && ((try? String(contentsOf: ro, encoding: .utf8)) ?? "") == "# RO\n")
+        try? fm.setAttributes([.posixPermissions: 0o644], ofItemAtPath: ro.path)
+        let left = ((try? fm.contentsOfDirectory(atPath: dir.path)) ?? []).filter(AtomicFile.isTemporary)
+        check("save: no temporary file is left", left.isEmpty, left.joined(separator: " "))
     }
 
     // Two panel folders, as the wiki of indices and memories: indices/home.md and memories/topic/a.md.

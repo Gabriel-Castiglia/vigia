@@ -46,6 +46,13 @@ enum Tabs {
         return (files, active)
     }
 
+    /// The passing tab (DocWindow.preview) of the window of `doc` that a click in the panel may take: one nobody typed
+    /// in and that is not being saved.
+    static func passing(near doc: DocWindow?) -> DocWindow? {
+        let group = doc?.window?.tabbedWindows ?? doc?.window.map { [$0] } ?? []
+        return group.compactMap { $0.windowController as? DocWindow }.first { $0.preview && !$0.model.dirty && !$0.saving }
+    }
+
     /// With Reopen Tabs at Start on, the session is written as the tabs change, not only on quitting, so it
     /// survives a crash too. Closing the last window keeps it as it was: the next start opens those tabs again.
     static func changed(after delay: Double = 0) {

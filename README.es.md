@@ -3,7 +3,7 @@
 <h1 align="center">Vigía</h1>
 <p align="center"><b>Escribí Markdown en forma visual. Miralo como en GitHub.</b></p>
 
-Gabriel Castiglia · 24 de noviembre de 2026 · versión 3.2.0 · GPL-2.0-only
+Gabriel Castiglia · 25 de noviembre de 2026 · versión 3.3.1 · GPL-2.0-only
 
 Hasta la versión 2.2.1 se llamaba Gryphmark: al instalar Vigía se quita, y su configuración, sus instancias
 dedicadas y sus borradores de recuperación pasan solos la primera vez que Vigía arranca.
@@ -75,6 +75,11 @@ papelera y, si querés borrar también la configuración, corré `defaults delet
   los mismos archivos con la misma pestaña adelante. La lista se escribe a medida que cambian las pestañas, así que
   sobrevive a un cierre inesperado; los documentos sin título no se guardan, y un archivo que ya no está se deja
   afuera. Una actualización que se instala sola vuelve a abrir todas las pestañas.
+- Pestaña de vista previa: un clic en un archivo del panel Archivos (o en Favoritos o Recientes) lo muestra en una
+  pestaña de paso, con el nombre en cursiva, que el clic siguiente reutiliza, así recorrer una carpeta no deja una
+  pestaña por archivo. Escribir en ella, guardarla con un nombre o un doble clic en el archivo la conserva. Archivo →
+  Pestaña de vista previa para los archivos del panel la desactiva. Un archivo abierto desde Favoritos deja las
+  carpetas del panel como estaban.
 - Editar o Solo lectura (⇧⌘L): solo lectura bloquea el texto para que nada cambie por error; igual podés
   seleccionar, copiar, buscar y cambiar de vista.
 - La barra y el menú Formato: títulos, negrita, cursiva, tachado, código en línea, listas, listas de tareas,
@@ -138,11 +143,23 @@ papelera y, si querés borrar también la configuración, corré `defaults delet
   la página de GitHub en el idioma de la interfaz.
 - Convertir a TXT: clic derecho en un archivo del panel de archivos. Se escribe un .txt al lado, como se lee el
   documento en la vista GitHub (títulos, listas, tablas y enlaces en texto plano); el archivo Markdown no cambia.
-- Buscar y reemplazar (⌘F, ⌥⌘F, ⌘G), zoom (⌘+, ⌘−, ⌘0, o el deslizador de la línea de estado), corrector ortográfico, exportar a una página HTML
+- Buscar y reemplazar (⌘F, ⌥⌘F, ⌘G), zoom (⌘+, ⌘−, ⌘0, o el deslizador de la línea de estado), exportar a una página HTML
   autónoma (⌘E), imprimir o guardar como PDF (⌘P).
 - Al guardar se respeta tu formato: los bloques que no tocaste conservan su Markdown original, de una línea
   editada cambia solo lo que tocaste, y el archivo conserva sus fines de línea (LF o CRLF) y su marca de orden
-  de bytes.
+  de bytes. El texto nuevo llega al disco antes de ocupar el lugar del viejo, así un cuelgue o un corte de luz deja
+  uno u otro; un enlace simbólico sigue siendo enlace (se escribe el archivo al que apunta), el archivo conserva sus
+  permisos y sus etiquetas de Finder, y un archivo de solo lectura se rechaza en vez de reemplazarse.
+- Corrector ortográfico en varios idiomas a la vez, activado con inglés, español, español del Uruguay y japonés:
+  una palabra está bien si alguno de los idiomas elegidos la conoce, así un texto que mezcla idiomas se revisa
+  entero. Revisa el corrector de la Mac, palabra por palabra en cada idioma; Edición → Idiomas y diccionario del
+  corrector… ofrece todos los idiomas que tiene macOS. El español del Uruguay es el español de la Mac más el voseo
+  (*tenés*, *mirá*, *decíselo*), que el español de la Mac marca. Las palabras marcadas llevan una línea ondulada roja
+  en las vistas Visual y Markdown; el código y las direcciones no se revisan, y el texto en japonés nunca se marca
+  (no hay diccionario ortográfico de japonés). Con clic derecho en una palabra marcada aparecen las sugerencias,
+  *Omitir (hasta salir de Vigía)* y *Agregar al diccionario* (queda en la configuración de este Vigía; el mismo
+  diálogo muestra esas palabras, y al destildar una se saca). Edición → Corrector ortográfico lo activa o desactiva
+  en todas las pestañas sin tocar el texto.
 - Autoguardado, encendido de fábrica: un archivo con nombre se guarda solo un momento después de que dejás de
   escribir. El interruptor *Autoguardado* de la barra (también Archivo → Autoguardado) lo apaga, y entonces solo
   Guardar (⌘S) escribe el archivo. Nunca escribe encima de un cambio hecho por otro programa: Vigía pregunta

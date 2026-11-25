@@ -17,6 +17,12 @@ final class Prefs: ObservableObject {
     @Published var accent = Accent.defaultKey { didSet { save(); applyDockIcon() } }
     @Published var mode = "visual" { didSet { save() } }                        // visual, source, preview
     @Published var spell = true { didSet { save() } }
+    /// Spell check languages, all checked at once (Spell.swift); words added to the dictionary with the right click.
+    @Published var spellLangs = Spell.defaultLanguages { didSet { save() } }
+    @Published var spellWords: [String] = [] { didSet { save() } }
+    /// File → Preview Tab for Files from the Panel (3.3.1, as Windows 3.3.0): a click in the panel shows the file in a
+    /// passing tab that the next click reuses.
+    @Published var previewTab = true { didSet { save() } }
     @Published var autoSave = true { didSet { save() } }                    // saves a moment after the typing stops
     @Published var readOnly = false { didSet { save() } }
     @Published var zoom = 1.0 { didSet { save() } }
@@ -73,6 +79,9 @@ final class Prefs: ObservableObject {
         accent = d.string(forKey: "Accent") ?? Accent.defaultKey
         mode = d.string(forKey: "Mode") ?? "visual"
         spell = d.object(forKey: "Spell") as? Bool ?? true
+        spellLangs = (d.stringArray(forKey: "SpellLangs") ?? Spell.defaultLanguages).filter { !$0.isEmpty }
+        spellWords = d.stringArray(forKey: "SpellWords") ?? []
+        previewTab = d.object(forKey: "PreviewTab") as? Bool ?? true
         autoSave = d.object(forKey: "AutoSave") as? Bool ?? true
         readOnly = d.bool(forKey: "ReadOnly")
         zoom = max(0.5, min(3, d.object(forKey: "Zoom") as? Double ?? 1))
@@ -126,7 +135,7 @@ final class Prefs: ObservableObject {
     func save() {
         guard persist, !loading else { return }
         let values: [String: Any] = [
-            "Lang": lang, "Theme": theme, "Accent": accent, "Mode": mode, "Spell": spell, "AutoSave": autoSave, "ReadOnly": readOnly,
+            "Lang": lang, "Theme": theme, "Accent": accent, "Mode": mode, "Spell": spell, "SpellLangs": spellLangs, "SpellWords": spellWords, "PreviewTab": previewTab, "AutoSave": autoSave, "ReadOnly": readOnly,
             "Zoom": zoom, "Sidebar": sidebar, "FilesPanel": filesPanel, "OutlinePanel": outlinePanel, "FilesSide": filesSide,
             "OutlineSide": outlineSide, "LeftArrange": leftArrange, "RightArrange": rightArrange, "OutlineFirst": outlineFirst,
             "LayoutWidths": layoutWidths, "OutlineShare": outlineShare, "OutlineShareColumns": outlineShareColumns, "TextWidth": textWidth, "TreeLocked": treeLocked, "SearchMode": searchMode, "Recent": recent, "RecentFolders": recentFolders, "SampleHidden": sampleHidden, "Folders": folders, "SampleShown": sampleShown,

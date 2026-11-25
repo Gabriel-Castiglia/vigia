@@ -3,7 +3,7 @@
 <h1 align="center">Vigía</h1>
 <p align="center"><b>Write Markdown visually. See it like GitHub.</b></p>
 
-Gabriel Castiglia · November 24, 2026 · version 3.2.0 · GPL-2.0-only
+Gabriel Castiglia · November 25, 2026 · version 3.3.1 · GPL-2.0-only
 
 Until version 2.2.1 it was called Gryphmark: installing Vigía removes it, and its settings, dedicated instances
 and recovery drafts come over the first time Vigía starts.
@@ -72,6 +72,10 @@ and, to remove the settings too, run `defaults delete io.github.gabriel-castigli
   the next start opens the same files again with the same tab in front. The list is written as the tabs change, so
   it survives a crash; untitled documents are not kept, and a file that is gone by then is left out. An update that
   installs itself opens every tab again.
+- Preview tab: a click on a file in the Files panel (or in Favourites or Recent) shows it in a passing tab, its name
+  in italics, that the next click there reuses, so browsing a folder does not leave a tab per file. Typing in it,
+  saving it under a name, or a double click on the file keeps it. File → Preview Tab for Files from the Panel turns
+  it off. A file opened from Favourites leaves the folders of the panel as they were.
 - Edit or Read only (⇧⌘L): read only locks the text so nothing changes by mistake; you can still select, copy,
   find and switch views.
 - The toolbar and the Format menu: headings, bold, italic, strikethrough, inline code, lists, task lists,
@@ -131,10 +135,22 @@ and, to remove the settings too, run `defaults delete io.github.gabriel-castigli
   the language of the interface.
 - Convert to TXT: right-click a file in the Files panel. A .txt is written next to it, as the document reads in the
   GitHub view (headings, lists, tables and links in plain text); the Markdown file is not changed.
-- Find and replace (⌘F, ⌥⌘F, ⌘G), zoom (⌘+, ⌘−, ⌘0, or the slider of the status line), spell check, export to a self-contained HTML page (⌘E),
+- Find and replace (⌘F, ⌥⌘F, ⌘G), zoom (⌘+, ⌘−, ⌘0, or the slider of the status line), export to a self-contained HTML page (⌘E),
   print or save as PDF (⌘P).
 - Saving keeps your formatting: blocks you did not touch keep their original Markdown, an edited line keeps all of
-  itself but your change, and the file keeps its line endings (LF or CRLF) and its byte order mark.
+  itself but your change, and the file keeps its line endings (LF or CRLF) and its byte order mark. The new text
+  reaches the disk before it takes the place of the old file, so a crash or a power cut leaves one or the other;
+  a symbolic link stays a link (the file it points to is the one written), the file keeps its permissions and its
+  Finder tags, and a read-only file is refused instead of replaced.
+- Spell check in several languages at once, on by default with English, Spanish, the Spanish of Uruguay and
+  Japanese: a word is right when any chosen language knows it, so a text that mixes languages is checked as a whole.
+  The checking is the Mac's own, word by word in each language; Edit → Spell Check Languages and Dictionary… offers
+  every language macOS has. The Spanish of Uruguay is the Mac's Spanish plus the voseo (*tenés*, *mirá*,
+  *decíselo*), which the Mac's Spanish marks. Marked words get a red wavy line in the Visual and Markdown views;
+  code and addresses are left out, and Japanese text is never marked (there is no Japanese spelling dictionary).
+  Right-click a marked word for its suggestions, *Ignore (until Vigía quits)* and *Add to Dictionary* (kept in the
+  settings of this Vigía; the same dialog lists those words, untick one to take it out). Edit → Spell check turns
+  it on or off in every tab without touching the text.
 - Autosave, on by default: a file with a name saves itself a moment after you stop typing. The *Autosave* switch
   in the toolbar (also File → Autosave) turns it off, and then only Save (⌘S) writes the file. It never writes over
   a change made by another program: Vigía asks first, as without autosave.

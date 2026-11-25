@@ -1,5 +1,36 @@
 # Changelog
 
+## 3.3.1 — 2026-11-25
+
+What Vigía 3.2.1, 3.3.0 and 3.3.1 for Windows brought, where it applies on the Mac.
+
+- **Spell check in several languages at once**, on by default with English, Spanish, the Spanish of Uruguay and
+  Japanese: a word is right when any chosen language knows it. The page marks the words (a red wavy line, code and
+  addresses left out) and the Mac's own checker decides, language by language; WebKit's checker followed one
+  language and had no ignore list, and is off now. The Spanish of Uruguay is the Mac's Spanish plus the voseo:
+  a word it does not know is tried as the vosotros form it comes from (*tenés* → *tenéis*, *mirá* → *mirad*,
+  *decíselo* → *decid*). Right click on a marked word: suggestions, *Ignore (until Vigía quits)*, *Add to
+  Dictionary*. *Edit → Spell Check Languages and Dictionary…* picks among every language macOS has and lists the
+  words added (untick one to take it out).
+- **Preview tab**: a click on a file in the Files panel (or Favourites, or Recent) shows it in a passing tab, its
+  name in italics, that the next click reuses. Typing in it, saving it under a name, or a double click on the file
+  keeps it; *File → Preview Tab for Files from the Panel* turns it off. A file opened from Favourites leaves the
+  folders of the panel as they were.
+- **Saving**: a document that is a symbolic link was replaced by a plain file with the new text, and the file it
+  pointed to kept the old one; the extended attributes (Finder tags and comments) were lost on every save. The new
+  text now reaches the disk and takes the old file's place with its permissions and attributes, through the link.
+  A read-only file is refused instead of replaced.
+- **Undo right after opening a file emptied the document** (the loading of the text was in the undo history), and
+  a table whose cells end in inline HTML (`| x <sub>L-02</sub> |`) showed a blank visual view; both fixed in the
+  page, as on Windows.
+- **A smaller page**: the GitHub view carries the ~40 common highlight.js languages; a code block in any other
+  language loads the full set (`lib/hljs-all.js`) only then. Newer libraries in the page: DOMPurify 3.5.0, TOAST UI
+  Editor 3.2.3, highlight.js 11.12.0, marked-footnote 1.4.0, github-markdown-css 5.9.0.
+- The release carries `release.sig`, the author's signature of its `SHA256SUMS.txt`, like the Windows apps. Vigía for
+  Mac already accepts an update only when the downloaded app is signed as the installed one.
+- Not taken from Windows: the page started ahead so that new tabs open at once (a new tab is ready in 0.37 to 0.58 s
+  on the Mac, measured; 0.8 to 1.2 s on Windows), the error log and the network-picture rule (Windows only).
+
 ## 3.2.0 — 2026-11-24
 
 The same as Vigía 3.2.0 for Windows: tabs, Expand all and Japanese.

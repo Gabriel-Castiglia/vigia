@@ -261,19 +261,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Opens a file, as on Windows since 3.2.0: the tab that already has it is shown; otherwise it goes into the
     /// tab of `from` (or the shown one) when nobody typed in it, or into a new tab next to it. `inNewWindow`: a
-    /// window of its own instead.
-    func open(_ url: URL, from doc: DocWindow?, inNewWindow: Bool = false) {
+    /// window of its own instead. `preview` (a click in the Files panel, with File → Preview Tab on; 3.3.1 as Windows
+    /// 3.3.0): the file goes into the passing tab of that window, which shows it instead of the file it had, so
+    /// browsing a folder does not leave a tab per file.
+    func open(_ url: URL, from doc: DocWindow?, inNewWindow: Bool = false, preview: Bool = false) {
         let url = url.standardizedFileURL
         var isDir: ObjCBool = false
         if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue {
             addFolder(url); return
         }
-        if let open = DocWindow.all.first(where: { $0.filePath == url }) { show(open); return }
+        let preview = preview && prefs.previewTab && !inNewWindow
+        if let open = DocWindow.all.first(where: { $0.filePath == url }) {
+            if !preview { open.preview = false }
+            show(open); return
+        }
         let here = doc ?? current
         let target: DocWindow
         if inNewWindow || here == nil { target = newWindow() }
         else if let h = here, h.isPristine { target = h }
+        else if preview, let passing = Tabs.passing(near: here) { target = passing }
         else { target = newTab(after: here) }
+        target.preview = preview
         target.openFresh(url)
         show(target)
     }
@@ -431,6 +439,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return top
     }
 
+    /// File → Preview Tab for Files from the Panel.
+    private func previewTabItem() -> NSMenuItem {
+        let i = item(L("PreviewTab"), on: { [weak self] in self?.prefs.previewTab == true }) { [weak self] in
+            guard let self else { return }
+            self.prefs.previewTab.toggle()
+            if !self.prefs.previewTab { for d in DocWindow.all { d.preview = false } }
+        }
+        i.toolTip = L("PreviewTabTip")
+        return i
+    }
+
     /// File → Reopen Tabs at Start.
     private func restoreTabsItem() -> NSMenuItem {
         let i = item(L("RestoreTabs"), on: { [weak self] in self?.prefs.restoreTabs == true }) { [weak self] in self?.toggleRestoreTabs() }
@@ -507,6 +526,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             item(L("CloseDir")) { [weak self] in self?.prefs.folders = [] },
             startupItem(),
             restoreTabsItem(),
+            previewTabItem(),
             .separator(),
             item(L("CloseWindow"), key: "w") { NSApp.keyWindow?.performClose(nil) },
             item(L("Save"), key: "s", doc { d in Task { await d.save(as: false) } }),
@@ -543,9 +563,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                  doc { $0.setReadOnly(!Prefs.shared.readOnly) }),
             item(L("Spell"), on: { [weak self] in self?.prefs.spell == true }) { [weak self] in
                 guard let self else { return }
-                self.prefs.spell.toggle()
-                for d in DocWindow.all { Task { await d.applySpell() } }
+                let on = !self.prefs.spell
+                MainActor.assumeIsolated { Spell.setOn(on) }
             },
+            item(L("SpellLangs")) { [weak self] in let w = self?.current?.window; MainActor.assumeIsolated { Spell.showDialog(in: w) } },
         ]))
 
         let headings: [NSMenuItem] = (1 ... 6).map { n in item("H\(n)", key: "\(n)", mods: [.command, .option], doc { $0.exec("heading", ["level": n]) }) }
