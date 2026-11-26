@@ -3,7 +3,7 @@
 <h1 align="center">Vigía</h1>
 <p align="center"><b>Escribí Markdown en forma visual. Miralo como en GitHub.</b></p>
 
-Gabriel Castiglia · 25 de noviembre de 2026 · versión 3.3.1 · GPL-2.0-only
+Gabriel Castiglia · 27 de noviembre de 2026 · versión 3.5.3 · GPL-2.0-only
 
 Hasta la versión 2.2.1 se llamaba Gryphmark: al instalar Vigía se quita, y su configuración, sus instancias
 dedicadas y sus borradores de recuperación pasan solos la primera vez que Vigía arranca.
@@ -122,6 +122,15 @@ papelera y, si querés borrar también la configuración, corré `defaults delet
   sobre una carpeta; otro clic lo vuelve a bloquear. Las dos flechas de la cabecera deshacen y rehacen cada cambio de
   nombre y cada movimiento. Todo pasa en el disco; el documento abierto sigue a su archivo, y antes se guarda si
   tenía cambios.
+- Archivos y carpetas nuevos, y eliminar, también con el árbol desbloqueado: los dos primeros botones de la barra, y
+  clic derecho en una carpeta → *Nuevo archivo Markdown…* o *Nueva carpeta…*, los crean en el disco en el momento,
+  con un nombre libre propuesto (*Documento nuevo.md*, *Documento nuevo 2.md*…). Van a la carpeta del clic derecho, o
+  a la última carpeta creada, o a la carpeta del documento abierto, o a la primera carpeta abierta; sin carpetas
+  abiertas, a `Documentos/Vigia`, que se crea y se suma al panel. Un archivo sin extensión de Markdown recibe `.md`,
+  empieza con su nombre como título y se abre en el momento. Nunca se escribe encima: un nombre ya usado se rechaza.
+  Clic derecho → *Eliminar* manda un archivo o una carpeta a la Papelera, de donde se puede recuperar, después de una
+  pregunta que se puede silenciar para esa ventana; donde no hay Papelera (una carpeta de red) vuelve a preguntar,
+  siempre, antes de borrar del todo. Las pestañas de lo eliminado se cierran, y sale de Favoritos y de Recientes.
 - Imágenes: al lado del documento o en otra carpeta (`../img/a.png`), con una ruta absoluta o una
   dirección `file:`, con espacios en la ruta, y como `![[imagen.png]]` o `![[imagen.png|300]]`, que se buscan en
   las carpetas abiertas. `![alt|300](a.png)` fija el ancho. Una imagen que no se encuentra muestra su nombre en un
@@ -218,8 +227,8 @@ conservados, y la exportación a HTML.
 La página del editor (`web/`) es la de la versión para Windows. Sus bibliotecas (`web/lib`) se arman con esbuild
 desde `_npm/` con `scripts/web.sh`, que necesita Node.js; el paquete del repositorio se hizo así, con las
 versiones exactas de `_npm/package-lock.json`. `scripts/manual.sh` hace los manuales PDF a partir de los dos
-README, `scripts/capturas.sh` las imágenes de `docs/img`, y `tools/make_icons.py` el ícono y sus doce colores
-(Python con numpy y Pillow).
+README, y `scripts/capturas.sh` las imágenes de `docs/img`. El ícono sale de `assets/icon.svg`, en sus doce
+colores, con la herramienta de íconos del autor.
 
 Las versiones de las herramientas con que se compiló y probó Vigía 3.1.0 están en la tabla del
 [README en inglés](README.md#building-from-source).
@@ -248,4 +257,4 @@ Copyright (C) 2026 Gabriel Castiglia. Vigía es software libre bajo la GNU Gener
 | TOAST UI Editor, ProseMirror, marked (+ extensiones alert, footnote, katex), github-markdown-css, Mermaid, KaTeX, gemoji | MIT |
 | highlight.js, jsdiff | BSD-3-Clause |
 | DOMPurify | MPL-2.0 (usado bajo la opción MPL-2.0 de su doble licencia MPL-2.0 / Apache-2.0) |
-| Ícono: el faro del proyecto de faro de Debenne (c. 1815), Museo Metropolitano de Arte | CC0 |
+| Ícono: un faro dibujado para Vigía (2026) | GPL-2.0-only, como el resto |

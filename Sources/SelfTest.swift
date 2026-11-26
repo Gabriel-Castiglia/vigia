@@ -532,6 +532,7 @@ enum SelfTest {
         await dedicated(tmp)
         await tabsAndJapanese(d, tmp)
         await spellPreviewSave(d, tmp)
+        await newAndDelete(d, tmp)
 
         // Export.
         await d.loadText("# Exported\n\nA paragraph with `code`.\n\n<script>alert(1)</script>\n", sample: false)
@@ -833,6 +834,49 @@ enum SelfTest {
         try? fm.setAttributes([.posixPermissions: 0o644], ofItemAtPath: ro.path)
         let left = ((try? fm.contentsOfDirectory(atPath: dir.path)) ?? []).filter(AtomicFile.isTemporary)
         check("save: no temporary file is left", left.isEmpty, left.joined(separator: " "))
+    }
+
+    // 3.5.2 (Windows 3.4.0 to 3.5.1 on the Mac): new files and folders, and deleting, from the Files panel.
+    @MainActor
+    private static func newAndDelete(_ d: DocWindow, _ tmp: URL) async {
+        let fm = FileManager.default
+        let ops = FileOps.shared, prefs = Prefs.shared
+        let dir = tmp.appendingPathComponent("v352", isDirectory: true)
+        try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        let first = FileOps.freeName("New document", ext: ".md", in: dir)
+        try? Data("x".utf8).write(to: dir.appendingPathComponent(first))
+        let second = FileOps.freeName("New document", ext: ".md", in: dir)
+        check("new: a free name is offered", first == "New document.md" && second == "New document 2.md", "\(first) / \(second)")
+        let made = try? FileOps.createItem(in: dir, name: "Notas", folder: false)
+        let text = made.flatMap { try? String(contentsOf: $0, encoding: .utf8) } ?? ""
+        check("new: a file without a Markdown extension gets .md and its name as a heading", made?.lastPathComponent == "Notas.md" && text == "# Notas\n", text)
+        var refused = 0
+        for n in ["Notas.md", "a/b", ".."] { if (try? FileOps.createItem(in: dir, name: n, folder: false)) == nil { refused += 1 } }
+        check("new: a name taken, with a slash or .. is refused, nothing written over", refused == 3 && (try? String(contentsOf: dir.appendingPathComponent("Notas.md"), encoding: .utf8)) == "# Notas\n")
+        let folder = try? FileOps.createItem(in: dir, name: "Sub", folder: true)
+        var isDir: ObjCBool = false
+        check("new: a folder", folder.map { fm.fileExists(atPath: $0.path, isDirectory: &isDir) && isDir.boolValue } == true)
+        check("new: the folder asked for is the one used", ops.targetFolder(dir, doc: d).standardizedFileURL == dir.standardizedFileURL)
+        // deleting a folder closes the tab of a file inside it and takes it out of the lists
+        let inside = dir.appendingPathComponent("Sub/dentro.md")
+        try? Data("# Dentro\n".utf8).write(to: inside)
+        let app = NSApp.delegate as! AppDelegate
+        let host = app.newWindow()
+        _ = await wait(10) { host.model.ready }
+        host.openFresh(inside)
+        _ = await wait(8) { host.model.path == inside.standardizedFileURL }
+        let wasFav = prefs.favorites, wasRecent = prefs.recent
+        prefs.favorites.append(inside.path); prefs.recent.insert(inside.path, at: 0)
+        var ok = true
+        do { try ops.deleteWithoutAsking(dir.appendingPathComponent("Sub"), permanently: true) } catch { ok = false }
+        _ = await wait(3) { !DocWindow.all.contains { $0 === host } }
+        check("delete: the folder goes, its tab closes, it leaves Favourites and Open recent",
+              ok && !fm.fileExists(atPath: dir.appendingPathComponent("Sub").path) && !DocWindow.all.contains { $0 === host }
+              && !prefs.favorites.contains(inside.path) && !prefs.recent.contains(inside.path))
+        prefs.favorites = wasFav; prefs.recent = wasRecent
+        var gone = false
+        do { try ops.deleteWithoutAsking(dir.appendingPathComponent("no such file"), permanently: true) } catch { gone = true }
+        check("delete: a file that is not there is reported", gone)
     }
 
     // Two panel folders, as the wiki of indices and memories: indices/home.md and memories/topic/a.md.

@@ -179,7 +179,7 @@ struct ToolbarView: View {
     private func buttons(_ tools: [Tool]) -> some View {
         ForEach(tools, id: \.symbol) { t in
             Button(action: t.action) { Image(systemName: t.symbol).frame(width: 18, height: 18) }
-                .buttonStyle(.borderless).help(t.tip).disabled(off)
+                .buttonStyle(.borderless).help(t.tip).disabled(off).accessibilityLabel(t.tip)
         }
     }
 
@@ -198,8 +198,16 @@ struct ToolbarView: View {
 
     var body: some View {
         HStack(spacing: 6) {
+            // new file and new folder: in every mode, only with the tree unlocked (FileOps.newItem)
+            Button { FileOps.shared.newItem(folder: false, in: nil, doc: doc) } label: { Image(systemName: "doc.badge.plus") }
+                .buttonStyle(.borderless).help(L(prefs.treeLocked ? "NeedsUnlock" : "NewMarkdown")).disabled(prefs.treeLocked)
+                .accessibilityLabel(L("NewMarkdown"))
+            Button { FileOps.shared.newItem(folder: true, in: nil, doc: doc) } label: { Image(systemName: "folder.badge.plus") }
+                .buttonStyle(.borderless).help(L(prefs.treeLocked ? "NeedsUnlock" : "NewFolder")).disabled(prefs.treeLocked)
+                .accessibilityLabel(L("NewFolder"))
+            sep
             Button { prefs.togglePanes() } label: { Image(systemName: "sidebar.left") }
-                .buttonStyle(.borderless).help(L("Sidebar"))
+                .buttonStyle(.borderless).help(L("Sidebar")).accessibilityLabel(L("Sidebar"))
             sep
             Menu {
                 ForEach(1 ... 6, id: \.self) { n in
@@ -426,16 +434,16 @@ struct Sidebar: View {
                     .help(ops.redoStack.last.map { L("FileRedoTip", FileOps.describe($0)) } ?? L("FileRedoNone"))
                 Button { prefs.treeLocked.toggle() } label: { Image(systemName: prefs.treeLocked ? "lock" : "lock.open") }
                     .buttonStyle(.borderless).help(L(prefs.treeLocked ? "TreeLockedTip" : "TreeUnlockedTip"))
-                    .accessibilityIdentifier("treeLock")
+                    .accessibilityIdentifier("treeLock").accessibilityLabel(L(prefs.treeLocked ? "TreeLockedTip" : "TreeUnlockedTip"))
                 Button { tree.toggleAll(roots: prefs.folders, doc: doc) } label: {
                     Image(systemName: tree.open.isEmpty ? "rectangle.expand.vertical" : "rectangle.compress.vertical")
                 }
                 .buttonStyle(.borderless).help(L(tree.open.isEmpty ? "ExpandAll" : "CollapseAll"))
                 .accessibilityIdentifier("treeExpand")
                 Button { tree.tick += 1 } label: { Image(systemName: "arrow.clockwise") }
-                    .buttonStyle(.borderless).help(L("Refresh"))
-                Button { (NSApp.delegate as? AppDelegate)?.pickFolder() } label: { Image(systemName: "folder.badge.plus") }
-                    .buttonStyle(.borderless).help(L("FolderAdd"))
+                    .buttonStyle(.borderless).help(L("Refresh")).accessibilityLabel(L("Refresh"))
+                Button { (NSApp.delegate as? AppDelegate)?.pickFolder() } label: { Image(systemName: "plus.rectangle.on.folder") }
+                    .buttonStyle(.borderless).help(L("FolderAdd")).accessibilityLabel(L("FolderAdd"))
                 FolderOptionsMenu(prefs: prefs, tree: tree, doc: doc)
             }
             .padding(.horizontal, 10).padding(.top, 8).padding(.bottom, 4)
@@ -603,6 +611,9 @@ struct FolderHeader: View {
             Button(L("OpenDedicated")) { (NSApp.delegate as? AppDelegate)?.openDedicated(url, from: doc) }.disabled(!exists)
             Button(L("OpenFolder")) { NSWorkspace.shared.activateFileViewerSelecting([url]) }.disabled(!exists)
             Button(L("CopyPath")) { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(dir, forType: .string) }
+            Divider()
+            Button(L("NewMarkdown")) { FileOps.shared.newItem(folder: false, in: url, doc: doc) }.disabled(!exists || prefs.treeLocked)
+            Button(L("NewFolder")) { FileOps.shared.newItem(folder: true, in: url, doc: doc) }.disabled(!exists || prefs.treeLocked)
             Divider()
             Button(L("CollapseAll")) { tree.open = [] }
             Button(L("Refresh")) { tree.tick += 1 }
@@ -788,9 +799,18 @@ struct FileRow: View {
                     NSPasteboard.general.setString(node.url.path, forType: .string)
                 }
                 if !FileOps.isRoot(node.url) { Button(L("Rename")) { FileOps.shared.rename(node.url, doc: doc) } }
+                if node.isFolder && !inRecent {
+                    Divider()
+                    Button(L("NewMarkdown")) { FileOps.shared.newItem(folder: false, in: node.url, doc: doc) }.disabled(prefs.treeLocked)
+                    Button(L("NewFolder")) { FileOps.shared.newItem(folder: true, in: node.url, doc: doc) }.disabled(prefs.treeLocked)
+                }
                 if !node.isFolder {
                     Divider()
                     Button(L("ConvertTxt")) { (NSApp.delegate as? AppDelegate)?.convertToText(node.url, from: doc) }
+                }
+                if !FileOps.isRoot(node.url) && !inFavorites && !inRecent {
+                    Divider()
+                    Button(L("Delete")) { FileOps.shared.delete(node.url, doc: doc) }.disabled(prefs.treeLocked)
                 }
                 Divider()
                 Button(L("CollapseAll")) { tree.open = [] }

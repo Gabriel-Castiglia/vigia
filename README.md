@@ -3,7 +3,7 @@
 <h1 align="center">Vigía</h1>
 <p align="center"><b>Write Markdown visually. See it like GitHub.</b></p>
 
-Gabriel Castiglia · November 25, 2026 · version 3.3.1 · GPL-2.0-only
+Gabriel Castiglia · November 27, 2026 · version 3.5.3 · GPL-2.0-only
 
 Until version 2.2.1 it was called Gryphmark: installing Vigía removes it, and its settings, dedicated instances
 and recovery drafts come over the first time Vigía starts.
@@ -114,6 +114,15 @@ and, to remove the settings too, run `defaults delete io.github.gabriel-castigli
   in the panel header to unlock the tree and drag files and folders onto a folder; click it again to lock it. The
   two arrows of the header undo and redo each rename and move. All of it happens on disk; the open document follows
   its file, saved first if it had changes.
+- New files and folders, and deleting, also with the tree unlocked: the first two buttons of the toolbar, and
+  right-click on a folder → *New Markdown File…* or *New Folder…*, make them at once on disk, with a free name offered
+  (*New document.md*, *New document 2.md*…). They go into the folder that was right-clicked, or the folder made last,
+  or the folder of the open document, or the first open folder; with no folder open, into `Documents/Vigia`, which
+  is made and added to the panel. A file without a Markdown extension gets `.md` and starts with its name as a
+  heading, and opens at once. Nothing is written over: a name already taken is refused. Right-click → *Delete* moves
+  a file or folder to the Trash, where it can be restored, after a question that can be silenced for that window;
+  where there is no Trash (a network folder), it asks again, always, before deleting for good. The tabs of what is
+  deleted close, and it leaves Favourites and Open recent.
 - Pictures: beside the document or in another folder (`../img/a.png`), by an absolute path or a
   `file:` address, with spaces in the path, and as `![[picture.png]]` or `![[picture.png|300]]`, looked for in the
   open folders. `![alt|300](a.png)` sets the width. A picture that is not found shows its name in a dashed box; a
@@ -207,8 +216,8 @@ re-creating, writing and a burst of saves, unsaved changes kept, and HTML export
 The editor page (`web/`) is the one of the Windows version. Its libraries (`web/lib`) are bundled with esbuild
 from `_npm/` by `scripts/web.sh`, which needs Node.js; the bundle in the repository was made that way, with the
 exact versions in `_npm/package-lock.json`. `scripts/manual.sh` makes the PDF manuals from the two READMEs,
-`scripts/capturas.sh` the pictures in `docs/img`, and `tools/make_icons.py` the icon and its twelve colours
-(Python with numpy and Pillow).
+`scripts/capturas.sh` the pictures in `docs/img`. The icon is drawn from `assets/icon.svg`, in its twelve colours,
+by the author's icon tool.
 
 Vigía 3.1.0 was built and checked with:
 
@@ -248,4 +257,4 @@ only (GPL-2.0-only); see [`LICENSE`](LICENSE). It comes with no warranty.
 | TOAST UI Editor, ProseMirror, marked (+ alert, footnote, katex extensions), github-markdown-css, Mermaid, KaTeX, gemoji | MIT |
 | highlight.js, jsdiff | BSD-3-Clause |
 | DOMPurify | MPL-2.0 (used under the MPL-2.0 option of its MPL-2.0 / Apache-2.0 dual licence) |
-| Icon: the lighthouse of Debenne's design for a lighthouse (c. 1815), The Metropolitan Museum of Art | CC0 |
+| Icon: a lighthouse drawn for Vigía (2026) | GPL-2.0-only, like the rest |

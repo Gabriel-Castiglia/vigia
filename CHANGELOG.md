@@ -1,6 +1,20 @@
 # Changelog
 
-## 3.3.1 — 2026-11-25
+## 3.5.3 — 2026-11-27
+
+What Vigía for Windows brought in 3.4.0 to 3.5.3, where it applies on the Mac.
+
+- **A new icon**: a lighthouse drawn as a flat picture, cream with a black outline on the theme colour, with its
+  stripes, gallery, lit lantern and two beams; the engraving it replaces read as a candle at small sizes. It still
+  follows the colour chosen in *View → Theme…*, in all twelve colours. The drawing is in `assets/icon.svg`.
+- **New Markdown file and New folder**, the first two buttons of the toolbar and two entries of a folder's
+  right-click menu, with a free name offered; a file without a Markdown extension gets `.md` and its name as a
+  heading, and opens at once. Nothing is written over.
+- **Delete** (right-click), to the Trash, after a question that can be silenced for that window; where there is no
+  Trash it asks again before deleting for good. Its tabs close and it leaves Favourites and Open recent.
+- New file, new folder and delete only with the tree unlocked, as dragging; the padlock's tooltip says so.
+- The toolbar buttons and the buttons of the Files panel have names for VoiceOver.
+
 
 What Vigía 3.2.1, 3.3.0 and 3.3.1 for Windows brought, where it applies on the Mac.
 

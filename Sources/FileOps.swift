@@ -141,4 +141,170 @@ final class FileOps: ObservableObject {
         }
         return true
     }
+
+    // MARK: new files and folders, and deleting (3.5.2: what Vigía for Windows brought in 3.4.0 to 3.5.1)
+    // Only with the tree unlocked (the padlock of the panel), as dragging. Nothing is ever written over: a name already
+    // taken, or one macOS would not take as one item, is refused with a message.
+
+    /// The folder a new file or folder is made in: the one asked (a folder's right-click menu), else the folder made
+    /// last from here, else the folder of the shown document when it is in the panel, else the first open folder, else
+    /// ~/Documents/Vigia (made, and added to the panel).
+    private var lastNewFolder: URL?
+
+    func targetFolder(_ asked: URL?, doc: DocWindow?) -> URL {
+        let fm = FileManager.default
+        func isDir(_ u: URL?) -> Bool { var d: ObjCBool = false; return u.map { fm.fileExists(atPath: $0.path, isDirectory: &d) && d.boolValue } ?? false }
+        if isDir(asked) { return asked! }
+        if isDir(lastNewFolder) { return lastNewFolder! }
+        let roots = Prefs.shared.folders.map { URL(fileURLWithPath: $0) }
+        if let dir = doc?.model.path?.deletingLastPathComponent(), roots.contains(where: { FileOps.isUnder(dir, $0) || $0.standardizedFileURL == dir.standardizedFileURL }) {
+            return dir
+        }
+        if let first = roots.first(where: isDir) { return first }
+        let mine = fm.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("Vigia", isDirectory: true)
+        try? fm.createDirectory(at: mine, withIntermediateDirectories: true)
+        if !Prefs.shared.folders.contains(mine.path) { Prefs.shared.folders.append(mine.path) }
+        return mine
+    }
+
+    /// A name not taken in `dir`: "New document.md", "New document 2.md"...
+    static func freeName(_ base: String, ext: String, in dir: URL) -> String {
+        let fm = FileManager.default
+        for n in 1 ... 999 {
+            let name = (n == 1 ? base : "\(base) \(n)") + ext
+            if !fm.fileExists(atPath: dir.appendingPathComponent(name).path) { return name }
+        }
+        return base + " " + UUID().uuidString.prefix(6) + ext
+    }
+
+    /// Makes the file or folder; a file without a Markdown extension gets .md and starts with its name as a heading.
+    static func createItem(in dir: URL, name: String, folder: Bool) throws -> URL {
+        guard validName(name) else { throw Failure(L("NameInvalid", name)) }
+        var name = name.trimmingCharacters(in: .whitespaces)
+        let fm = FileManager.default
+        try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        if folder {
+            let u = dir.appendingPathComponent(name, isDirectory: true)
+            guard !fm.fileExists(atPath: u.path) else { throw Failure(L("NameExists", name)) }
+            try fm.createDirectory(at: u, withIntermediateDirectories: false)
+            return u
+        }
+        if !["md", "markdown", "mdown", "mkd"].contains((name as NSString).pathExtension.lowercased()) { name += ".md" }
+        let u = dir.appendingPathComponent(name)
+        let title = (name as NSString).deletingPathExtension
+        // withoutOverwriting: never over a file made meanwhile
+        do { try Data("# \(title)\n".utf8).write(to: u, options: .withoutOverwriting) }
+        catch CocoaError.fileWriteFileExists { throw Failure(L("NameExists", name)) }
+        return u
+    }
+
+    struct Failure: LocalizedError { let text: String; init(_ t: String) { text = t }; var errorDescription: String? { text } }
+
+    /// The toolbar's two first buttons and a folder's right-click menu: asks the name (a free one offered) and makes the
+    /// file, which opens at once, or the folder, where the next new file goes.
+    func newItem(folder: Bool, in asked: URL?, doc: DocWindow?) {
+        guard !Prefs.shared.treeLocked else { doc?.flash(L("NeedsUnlock")); return }
+        let dir = targetFolder(asked, doc: doc)
+        let a = NSAlert()
+        a.messageText = L(folder ? "NewFolder" : "NewMarkdown")
+        a.informativeText = L("NewItemName", dir.lastPathComponent)
+        let suggested = folder ? FileOps.freeName(L("NewFolderDefault"), ext: "", in: dir) : FileOps.freeName(L("NewMarkdownDefault"), ext: ".md", in: dir)
+        let field = NSTextField(string: suggested)
+        field.frame = NSRect(x: 0, y: 0, width: 320, height: 24)
+        a.accessoryView = field
+        a.addButton(withTitle: L("Create"))
+        a.addButton(withTitle: L("Cancel"))
+        a.window.initialFirstResponder = field
+        let stem = folder ? suggested : (suggested as NSString).deletingPathExtension
+        DispatchQueue.main.async { field.currentEditor()?.selectedRange = NSRange(location: 0, length: (stem as NSString).length) }
+        guard a.runModal() == .alertFirstButtonReturn else { return }
+        do {
+            let u = try FileOps.createItem(in: dir, name: field.stringValue, folder: folder)
+            generation += 1
+            if folder { lastNewFolder = u } else { (NSApp.delegate as? AppDelegate)?.open(u, from: doc) }
+        } catch {
+            doc?.flash(L("NewItemFailed", error.localizedDescription))
+        }
+    }
+
+    /// Windows that said "Don't ask again in this window": only for as long as they are open.
+    private var noAsk = Set<ObjectIdentifier>()
+
+    /// Right-click → Delete: to the Trash, where it can be restored, after a question (unless this window was told not
+    /// to ask). A volume without a Trash (a network folder) asks again, always: there it is deleted for good. Its tabs
+    /// close without saving (their text is in the Trash) and it leaves Favourites and Open recent. The open folders
+    /// themselves are closed from their own menu, never deleted from here.
+    func delete(_ url: URL, doc: DocWindow?) {
+        let fm = FileManager.default
+        guard !FileOps.isRoot(url) else { return }
+        guard !Prefs.shared.treeLocked else { doc?.flash(L("NeedsUnlock")); return }
+        var d: ObjCBool = false
+        guard fm.fileExists(atPath: url.path, isDirectory: &d) else { doc?.flash(L("ItemGone")); generation += 1; return }
+        let isDir = d.boolValue, name = url.lastPathComponent
+        let win = doc.map(ObjectIdentifier.init)
+        if win == nil || !noAsk.contains(win!) {
+            let a = NSAlert()
+            a.messageText = L(isDir ? "DeleteAskFolder" : "DeleteAskFile", name)
+            a.informativeText = L("DeleteToTrash")
+            a.addButton(withTitle: L("Delete"))
+            a.addButton(withTitle: L("Cancel"))
+            a.showsSuppressionButton = win != nil
+            a.suppressionButton?.title = L("DeleteNoAsk")
+            guard a.runModal() == .alertFirstButtonReturn else { return }
+            if a.suppressionButton?.state == .on, let w = win { noAsk.insert(w) }
+        }
+        var forGood = false
+        do { try deleteWithoutAsking(url, permanently: false) }
+        catch {
+            // no Trash on this volume: asked again, always, before deleting for good
+            let a = NSAlert()
+            a.messageText = L(isDir ? "DeleteAskFolderForGood" : "DeleteAskFileForGood", name)
+            a.informativeText = error.localizedDescription
+            a.alertStyle = .critical
+            a.addButton(withTitle: L("Delete"))
+            a.addButton(withTitle: L("Cancel"))
+            guard a.runModal() == .alertFirstButtonReturn else { generation += 1; return }
+            do { try deleteWithoutAsking(url, permanently: true); forGood = true }
+            catch { doc?.flash(L("DeleteFailed", name, error.localizedDescription)); generation += 1; return }
+        }
+        doc?.flash(L(forGood ? "DeletedForGood" : "Deleted", name))
+    }
+
+    /// Deletes without asking: closes its tabs, sends it to the Trash (or deletes it for good) and takes it out of the
+    /// lists. Throws when macOS refuses; then nothing changed but the closed tabs. The self-test deletes for good, so
+    /// its files never reach the user's Trash.
+    func deleteWithoutAsking(_ url: URL, permanently: Bool) throws {
+        let fm = FileManager.default
+        var d: ObjCBool = false
+        guard fm.fileExists(atPath: url.path, isDirectory: &d) else { throw Failure(L("ItemGone")) }
+        closeTabs(of: url, isDir: d.boolValue)
+        if permanently || DocWindow.inSelfTest { try fm.removeItem(at: url) } else { try fm.trashItem(at: url, resultingItemURL: nil) }
+        forget(url, isDir: d.boolValue)
+    }
+
+    private func affected(_ p: URL?, _ url: URL, _ isDir: Bool) -> Bool {
+        guard let p else { return false }
+        return p.standardizedFileURL.path == url.standardizedFileURL.path || (isDir && FileOps.isUnder(p, url))
+    }
+
+    /// The tabs of the file (or of the files inside the folder) close, without saving.
+    private func closeTabs(of url: URL, isDir: Bool) {
+        for x in DocWindow.all where affected(x.filePath, url, isDir) {
+            x.model.dirty = false
+            x.close()
+        }
+    }
+
+    /// Out of Favourites, Open recent and the undo history; the trees read the disk again.
+    private func forget(_ url: URL, isDir: Bool) {
+        let prefs = Prefs.shared
+        let gone: (String) -> Bool = { [self] in affected(URL(fileURLWithPath: $0), url, isDir) }
+        if prefs.favorites.contains(where: gone) { prefs.favorites.removeAll(where: gone) }
+        if prefs.recent.contains(where: gone) { prefs.recent.removeAll(where: gone) }
+        if prefs.recentFolders.contains(where: gone) { prefs.recentFolders.removeAll(where: gone) }
+        undoStack.removeAll { affected($0.to, url, isDir) || affected($0.from, url, isDir) }
+        redoStack.removeAll { affected($0.to, url, isDir) || affected($0.from, url, isDir) }
+        if affected(lastNewFolder, url, isDir) { lastNewFolder = nil }
+        generation += 1
+    }
 }

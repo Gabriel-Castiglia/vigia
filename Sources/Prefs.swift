@@ -420,7 +420,7 @@ func L(_ key: String, _ args: CustomStringConvertible...) -> String {
 }
 
 /// The twelve theme colours of the Windows version: the icon background (icono/accents/<key>.png,
-/// made by tools/make_icons.py) and the highlight for the light and the dark chrome.
+/// drawn from assets/icon.svg by the author's icon tool) and the highlight for the light and the dark chrome.
 struct Accent {
     let key, en, es, ja: String
     let light, dark: UInt32
