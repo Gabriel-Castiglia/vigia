@@ -3,7 +3,7 @@
 <h1 align="center">Vigía</h1>
 <p align="center"><b>Write Markdown visually. See it like GitHub.</b></p>
 
-Gabriel Castiglia · November 27, 2026 · version 3.5.3 · GPL-2.0-only
+Gabriel Castiglia · November 27, 2026 · version 3.5.4 · GPL-2.0-only
 
 Until version 2.2.1 it was called Gryphmark: installing Vigía removes it, and its settings, dedicated instances
 and recovery drafts come over the first time Vigía starts.
@@ -230,8 +230,8 @@ Vigía 3.1.0 was built and checked with:
 | Python (icons) | 3.13.17 with numpy 2.5.4 and Pillow 12.3.0 |
 | Node.js / npm (web bundle, built for the Windows version) | 26.12.1 / 11.20.0, esbuild 0.25.5 |
 
-Web libraries: TOAST UI Editor 3.2.2, marked 15.0.12, KaTeX 0.19.1, Mermaid 12.3.0, highlight.js 11.11.1,
-jsdiff 9.0.0, DOMPurify 3.4.17, github-markdown-css 5.8.1, gemoji 8.1.0.
+Web libraries: TOAST UI Editor 3.2.3, marked 18.3.0, KaTeX 0.19.1, Mermaid 12.3.0, highlight.js 11.12.0,
+jsdiff 9.0.0, DOMPurify 3.5.0, github-markdown-css 5.9.0, gemoji 8.1.0.
 
 ## Project layout
 
