@@ -3,7 +3,7 @@
 <h1 align="center">Vigía</h1>
 <p align="center"><b>Escribí Markdown en forma visual. Miralo como en GitHub.</b></p>
 
-Gabriel Castiglia · 27 de noviembre de 2026 · versión 3.6.0 · GPL-2.0-only
+Gabriel Castiglia · 27 de noviembre de 2026 · versión 3.6.1 · GPL-2.0-only
 
 Hasta la versión 2.2.1 se llamaba Gryphmark: al instalar Vigía se quita, y su configuración, sus instancias
 dedicadas y sus borradores de recuperación pasan solos la primera vez que Vigía arranca.
@@ -153,7 +153,7 @@ papelera y, si quieres borrar también la configuración, ejecuta `defaults dele
 - Convertir a TXT: clic derecho en un archivo del panel de archivos. Se escribe un .txt al lado, como se lee el
   documento en la vista GitHub (títulos, listas, tablas y enlaces en texto plano); el archivo Markdown no cambia.
 - Buscar y reemplazar (⌘F, ⌥⌘F, ⌘G), zoom (⌘+, ⌘−, ⌘0, o el deslizador de la línea de estado), exportar a una página HTML
-  autónoma (⌘E), imprimir o guardar como PDF (⌘P).
+  autónoma (⌘E), con las imágenes del documento que están en esta Mac adentro, así se ven en cualquier lado, imprimir o guardar como PDF (⌘P).
 - Al guardar se respeta tu formato: los bloques que no tocaste conservan su Markdown original, de una línea
   editada cambia solo lo que tocaste, y el archivo conserva sus fines de línea (LF o CRLF) y su marca de orden
   de bytes. El texto nuevo llega al disco antes de ocupar el lugar del viejo, así un cuelgue o un corte de luz deja

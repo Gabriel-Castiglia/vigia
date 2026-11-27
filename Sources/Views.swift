@@ -191,7 +191,7 @@ struct ToolbarView: View {
                 ForEach(g, id: \.symbol) { t in Button(action: t.action) { Label(t.tip, systemImage: t.symbol) } }
             }
         } label: { Image(systemName: "ellipsis.circle") }
-            .menuStyle(.borderlessButton).fixedSize().help(L("MoreTools")).disabled(off)
+            .menuStyle(.borderlessButton).fixedSize().help(L("MoreTools")).disabled(off).accessibilityLabel(L("MoreTools"))
     }
 
     private var sep: some View { Divider().frame(height: 18) }
@@ -428,17 +428,17 @@ struct Sidebar: View {
                 // renames and moves of the tree: undo, redo, and the padlock that allows dragging (FileOps)
                 Button { Task { await ops.undo(doc: doc) } } label: { Image(systemName: "arrow.uturn.backward") }
                     .buttonStyle(.borderless).disabled(ops.undoStack.isEmpty)
-                    .help(ops.undoStack.last.map { L("FileUndoTip", FileOps.describe($0)) } ?? L("FileUndoNone"))
+                    .help(ops.undoStack.last.map { L("FileUndoTip", FileOps.describe($0)) } ?? L("FileUndoNone")).accessibilityLabel(ops.undoStack.last.map { L("FileUndoTip", FileOps.describe($0)) } ?? L("FileUndoNone"))
                 Button { Task { await ops.redo(doc: doc) } } label: { Image(systemName: "arrow.uturn.forward") }
                     .buttonStyle(.borderless).disabled(ops.redoStack.isEmpty)
-                    .help(ops.redoStack.last.map { L("FileRedoTip", FileOps.describe($0)) } ?? L("FileRedoNone"))
+                    .help(ops.redoStack.last.map { L("FileRedoTip", FileOps.describe($0)) } ?? L("FileRedoNone")).accessibilityLabel(ops.redoStack.last.map { L("FileRedoTip", FileOps.describe($0)) } ?? L("FileRedoNone"))
                 Button { prefs.treeLocked.toggle() } label: { Image(systemName: prefs.treeLocked ? "lock" : "lock.open") }
-                    .buttonStyle(.borderless).help(L(prefs.treeLocked ? "TreeLockedTip" : "TreeUnlockedTip"))
+                    .buttonStyle(.borderless).help(L(prefs.treeLocked ? "TreeLockedTip" : "TreeUnlockedTip")).accessibilityLabel(L(prefs.treeLocked ? "TreeLockedTip" : "TreeUnlockedTip"))
                     .accessibilityIdentifier("treeLock").accessibilityLabel(L(prefs.treeLocked ? "TreeLockedTip" : "TreeUnlockedTip"))
                 Button { tree.toggleAll(roots: prefs.folders, doc: doc) } label: {
                     Image(systemName: tree.open.isEmpty ? "rectangle.expand.vertical" : "rectangle.compress.vertical")
                 }
-                .buttonStyle(.borderless).help(L(tree.open.isEmpty ? "ExpandAll" : "CollapseAll"))
+                .buttonStyle(.borderless).help(L(tree.open.isEmpty ? "ExpandAll" : "CollapseAll")).accessibilityLabel(L(tree.open.isEmpty ? "ExpandAll" : "CollapseAll"))
                 .accessibilityIdentifier("treeExpand")
                 Button { tree.tick += 1 } label: { Image(systemName: "arrow.clockwise") }
                     .buttonStyle(.borderless).help(L("Refresh")).accessibilityLabel(L("Refresh"))
@@ -779,6 +779,7 @@ struct FileRow: View {
                     Button(L("FavDown")) { prefs.moveFavorite(node.url.path, by: 1) }
                     Button(L("FavSortAz")) { prefs.sortFavorites() }
                     Button(L("FavRemoveMissing")) { prefs.removeMissingFavorites() }
+                        .disabled(!prefs.favorites.contains { !FileManager.default.fileExists(atPath: $0) })   // greyed out while nothing is missing
                     Button(L("FavClear")) {
                         let a = NSAlert()
                         a.messageText = L("FavClearAsk")
@@ -851,11 +852,11 @@ struct FindBar: View {
                     .onSubmit { doc.find(step: 1) }
                     .onChange(of: model.findQuery) { _, _ in doc.find(step: 0) }
                 Toggle(L("MatchCase"), isOn: $model.findCase).onChange(of: model.findCase) { _, _ in doc.find(step: 0) }
-                Button { doc.find(step: -1) } label: { Image(systemName: "chevron.up") }.help(L("Prev"))
-                Button { doc.find(step: 1) } label: { Image(systemName: "chevron.down") }.help(L("Next"))
+                Button { doc.find(step: -1) } label: { Image(systemName: "chevron.up") }.help(L("Prev")).accessibilityLabel(L("Prev"))
+                Button { doc.find(step: 1) } label: { Image(systemName: "chevron.down") }.help(L("Next")).accessibilityLabel(L("Next"))
                 Text(model.findInfo).font(.system(size: 12)).foregroundStyle(.secondary)
                 Spacer()
-                Button { doc.hideFind() } label: { Image(systemName: "xmark") }.buttonStyle(.borderless).help(L("Close"))
+                Button { doc.hideFind() } label: { Image(systemName: "xmark") }.buttonStyle(.borderless).help(L("Close")).accessibilityLabel(L("Close"))
                     .keyboardShortcut(.cancelAction)
             }
             if model.replaceVisible {

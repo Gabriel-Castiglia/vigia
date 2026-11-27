@@ -693,11 +693,18 @@ final class DocWindow: NSWindowController, NSWindowDelegate {
         pendingExport = nil
         let dark = (m["theme"] as? String) == "dark"
         let math = (m["math"] as? Bool) ?? false
-        let css = (try? String(contentsOf: lib.appendingPathComponent(dark ? "github-markdown-dark.css" : "github-markdown-light.css"), encoding: .utf8)) ?? ""
-        let hl = (try? String(contentsOf: lib.appendingPathComponent(dark ? "hljs-dark.css" : "hljs-light.css"), encoding: .utf8)) ?? ""
+        let css: String, hl: String
+        do {
+            css = try String(contentsOf: lib.appendingPathComponent(dark ? "github-markdown-dark.css" : "github-markdown-light.css"), encoding: .utf8)
+            hl = try String(contentsOf: lib.appendingPathComponent(dark ? "hljs-dark.css" : "hljs-light.css"), encoding: .utf8)
+        } catch {
+            // A damaged install: said, not left as a page without styles (as Vigía for Windows 3.6.0).
+            alert(L("ErrSave", error.localizedDescription))
+            return
+        }
         let title = ((m["title"] as? String) ?? "").replacingOccurrences(of: "&", with: "&amp;")
             .replacingOccurrences(of: "<", with: "&lt;").replacingOccurrences(of: ">", with: "&gt;")
-        let body = (m["body"] as? String) ?? ""
+        let body = embedPictures((m["body"] as? String) ?? "")
         let html = """
             <!doctype html>
             <html lang="\(prefs.lang)">
@@ -724,6 +731,59 @@ final class DocWindow: NSWindowController, NSWindowDelegate {
             """
         do { try Data(html.utf8).write(to: file, options: .atomic) }
         catch { alert(L("ErrSave", error.localizedDescription)) }
+    }
+
+    /// An exported page's pictures from this Mac, written into it as data: addresses, so the page shows them anywhere
+    /// (a relative or gm-doc address means nothing outside Vigía), as Vigía for Windows 3.6.0 does. A ![[name]] is looked
+    /// for as the page does; web addresses, and a picture that is missing or over 25 MB, keep their address.
+    func embedPictures(_ body: String) -> String {
+        let docDir = model.path?.deletingLastPathComponent()
+        guard let img = try? NSRegularExpression(pattern: "<img\\b[^>]*>"),
+              let srcRe = try? NSRegularExpression(pattern: "\\ssrc=\"([^\"]*)\""),
+              let embedRe = try? NSRegularExpression(pattern: "\\sdata-embed=\"([^\"]*)\"") else { return body }
+        let ns = body as NSString
+        var out = "", last = 0
+        for m in img.matches(in: body, range: NSRange(location: 0, length: ns.length)) {
+            out += ns.substring(with: NSRange(location: last, length: m.range.location - last))
+            last = m.range.location + m.range.length
+            let tag = ns.substring(with: m.range) as NSString
+            guard let s = srcRe.firstMatch(in: tag as String, range: NSRange(location: 0, length: tag.length)) else { out += tag as String; continue }
+            var file = Self.pictureFile(Self.htmlDecoded(tag.substring(with: s.range(at: 1))), docDir: docDir)
+            if file.map({ !FileManager.default.fileExists(atPath: $0.path) }) ?? true,
+               let e = embedRe.firstMatch(in: tag as String, range: NSRange(location: 0, length: tag.length)) {
+                file = Wiki.findFile(Self.htmlDecoded(tag.substring(with: e.range(at: 1))), from: docDir, panel: prefs.folders)
+            }
+            guard let f = file, let mime = Self.pictureTypes[f.pathExtension.lowercased()],
+                  let size = (try? f.resourceValues(forKeys: [.fileSizeKey]))?.fileSize, size <= 25_000_000,
+                  let data = try? Data(contentsOf: f) else { out += tag as String; continue }
+            out += tag.replacingCharacters(in: s.range(at: 1), with: "data:\(mime);base64,\(data.base64EncodedString())")
+        }
+        out += ns.substring(from: last)
+        return out
+    }
+
+    static let pictureTypes = ["png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "gif": "image/gif",
+                               "webp": "image/webp", "svg": "image/svg+xml", "bmp": "image/bmp", "avif": "image/avif",
+                               "ico": "image/x-icon"]
+
+    /// The file on this Mac a picture's address stands for: gm-doc and file addresses, absolute paths, and paths relative
+    /// to the document's folder; nil for web and data addresses.
+    static func pictureFile(_ src: String, docDir: URL?) -> URL? {
+        if let u = URL(string: src), let scheme = u.scheme?.lowercased() {
+            if scheme == Schemes.doc { return Schemes.file(of: u) }
+            if scheme == "file" { return u.standardizedFileURL }
+            return nil
+        }
+        let path = src.removingPercentEncoding ?? src
+        if path.hasPrefix("/") { return URL(fileURLWithPath: path).standardizedFileURL }
+        guard let dir = docDir, !path.isEmpty else { return nil }
+        return dir.appendingPathComponent(path).standardizedFileURL
+    }
+
+    static func htmlDecoded(_ s: String) -> String {
+        s.replacingOccurrences(of: "&quot;", with: "\"").replacingOccurrences(of: "&#39;", with: "'")
+         .replacingOccurrences(of: "&lt;", with: "<").replacingOccurrences(of: "&gt;", with: ">")
+         .replacingOccurrences(of: "&amp;", with: "&")
     }
 
     private func printNow() {

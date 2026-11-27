@@ -384,7 +384,7 @@ struct LayoutPicker: View {
 
     var body: some View {
         Button { pop.on.toggle() } label: { LayoutThumb(shape: Layouts.shape(prefs), width: 26).padding(.vertical, 1) }
-            .buttonStyle(.borderless).help(L("LayoutPickerTip"))
+            .buttonStyle(.borderless).help(L("LayoutPickerTip")).accessibilityLabel(L("LayoutPickerTip"))
             .accessibilityIdentifier("layoutPicker")
             .popover(isPresented: $pop.on, arrowEdge: .bottom) { LayoutPanel(prefs: prefs) }
     }

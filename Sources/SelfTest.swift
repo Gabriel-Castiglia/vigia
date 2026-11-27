@@ -987,6 +987,14 @@ enum SelfTest {
               LinkPolicy.decide(Schemes.address(of: outside), reach: d.reach) == .openViewer(outside)
                   && LinkPolicy.decide(Schemes.address(of: tmp.appendingPathComponent("x.md")), reach: d.reach) == .ignore,
               "\(LinkPolicy.decide(Schemes.address(of: outside), reach: d.reach))")
+        // Export to HTML: the pictures of this Mac go inside the page; a missing one keeps its address (Windows 3.6.0).
+        let page = tmp.appendingPathComponent("pics-export.html")
+        d.exportTo(page)
+        _ = await wait(6) { fm.fileExists(atPath: page.path) }
+        let html = (try? String(contentsOf: page, encoding: .utf8)) ?? ""
+        let embedded = html.components(separatedBy: "data:image/png;base64,").count - 1
+        check("export: the pictures of this Mac are inside the page, a missing one keeps its address",
+              embedded == 5 && html.contains("nothing.png"), "\(embedded) embedded")
         d.setMode("visual")
 
         // the tree's file operations

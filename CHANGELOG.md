@@ -1,5 +1,18 @@
 # Changelog
 
+## 3.6.1 — 2026-11-27
+
+The rest of what Vigía for Windows brought in 3.6.0, where it applies on the Mac.
+
+- **Export to HTML** puts the document's pictures that are on this Mac inside the page, so the exported page shows
+  them anywhere; pictures from the web keep their address, and a missing one keeps its own.
+- *Export to HTML* shows an error when the program's stylesheets cannot be read, instead of writing a page without
+  styles.
+- **Favourites: *Remove the ones that no longer exist*** is greyed out while nothing is missing.
+- **VoiceOver**: the buttons that show only an icon (undo and redo in the Files panel, the padlock, expand and
+  collapse, the ⋯ menu, the layout button, the arrows and the close button of the find bar) have names.
+- *Check for updates* asked again while a check or an update is under way says so, instead of doing nothing.
+
 ## 3.6.0 — 2026-11-27
 
 What Vigía for Windows brought in 3.6.0, where it applies on the Mac.
