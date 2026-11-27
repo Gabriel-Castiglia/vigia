@@ -1,21 +1,21 @@
 # Bienvenido a Vigía
 
-Este es un **documento de ejemplo**. Cambialo todo lo que quieras: se abre como una copia sin título, así que el original nunca se pisa. Si querés conservar tu versión, guardala con **Guardar como**.
+Este es un **documento de ejemplo**. Cámbialo todo lo que quieras: se abre como una copia sin título, así que el original nunca se sobrescribe. Si quieres conservar tu versión, guárdala con **Guardar como**.
 
 > [!TIP]
-> Probá los tres botones del extremo derecho de la barra — **Visual · Markdown · GitHub** — o apretá `⌘1`, `⌘2` y `⌘3`. Es el mismo documento visto de tres maneras. ¿Solo vas a leer? Elegí **Solo lectura** al lado (`⇧⌘L`) y nada cambia por error.
+> Prueba los tres botones del extremo derecho de la barra — **Visual · Markdown · GitHub** — o presiona `⌘1`, `⌘2` y `⌘3`. Es el mismo documento visto de tres maneras. ¿Solo vas a leer? Elige **Solo lectura** al lado (`⇧⌘L`) y nada cambia por error.
 
 ## Las tres vistas
 
 | Vista | Atajo | Qué ves |
 |:--|:--:|:--|
-| **Visual** | `⌘1` | El documento con formato. Escribís y usás los botones; Vigía escribe las etiquetas. |
+| **Visual** | `⌘1` | El documento con formato. Escribes y usas los botones; Vigía escribe las etiquetas. |
 | **Markdown** | `⌘2` | El texto Markdown a la izquierda y la vista previa en vivo a la derecha. |
 | **GitHub** | `⌘3` | Solo lectura: la página tal cual la va a mostrar GitHub. |
 
-1. Seguramente estás en **Visual**. Seleccioná una palabra y apretá `⌘B`: queda en **negrita**.
-2. Pasá a **Markdown**: la misma palabra ahora tiene `**` a cada lado. Esas son las etiquetas.
-3. Pasá a **GitHub**: el diagrama y la fórmula de más abajo se dibujan, como en github.com.
+1. Seguramente estás en **Visual**. Selecciona una palabra y presiona `⌘B`: queda en **negrita**.
+2. Pasa a **Markdown**: la misma palabra ahora tiene `**` a cada lado. Esas son las etiquetas.
+3. Pasa a **GitHub**: el diagrama y la fórmula de más abajo se dibujan, como en github.com.
 
 ## Texto
 
@@ -41,7 +41,7 @@ En Visual y Markdown se ve como código; en la vista GitHub se dibuja.
 
 ```mermaid
 flowchart LR
-    A[Escribís en Visual] --> B[Mirás las etiquetas en Markdown]
+    A[Escribes en Visual] --> B[Miras las etiquetas en Markdown]
     B --> C[Lo ves como en GitHub]
 ```
 
@@ -63,14 +63,14 @@ $$
 
 ## Carpetas
 
-Abrí una carpeta entera con **Archivo → Abrir carpeta…** y sus archivos Markdown aparecen en un árbol a la izquierda, como en VS Code u Obsidian. Podés abrir varias carpetas, y debajo aparece el índice del documento abierto. Clic en un archivo para abrirlo; `⇧⌘E` muestra u oculta la barra lateral.
+Abre una carpeta entera con **Archivo → Abrir carpeta…** y sus archivos Markdown aparecen en un árbol a la izquierda, como en VS Code u Obsidian. Puedes abrir varias carpetas, y debajo aparece el índice del documento abierto. Clic en un archivo para abrirlo; `⇧⌘E` muestra u oculta la barra lateral.
 
 ## Pestañas
 
-Cada archivo se abre en su propia pestaña. `⌘T` abre una nueva, `⌃⇥` cambia de pestaña y `⌘W` cierra una. Activá **Archivo → Reabrir las pestañas al iniciar** y el próximo arranque vuelve a abrir los mismos archivos.
+Cada archivo se abre en su propia pestaña. `⌘T` abre una nueva, `⌃⇥` cambia de pestaña y `⌘W` cierra una. Activa **Archivo → Reabrir las pestañas al iniciar** y el próximo arranque vuelve a abrir los mismos archivos.
 
 ---
 
-Este ejemplo se abre solo la primera vez. Siempre lo podés volver a abrir desde **Ayuda → Documento de ejemplo**.
+Este ejemplo se abre solo la primera vez. Siempre lo puedes volver a abrir desde **Ayuda → Documento de ejemplo**.
 
 [^1]: Una nota al pie: en la vista GitHub aparece al final de la página.

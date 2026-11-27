@@ -3,7 +3,7 @@
 <h1 align="center">Vigía</h1>
 <p align="center"><b>Escribí Markdown en forma visual. Miralo como en GitHub.</b></p>
 
-Gabriel Castiglia · 27 de noviembre de 2026 · versión 3.5.4 · GPL-2.0-only
+Gabriel Castiglia · 27 de noviembre de 2026 · versión 3.6.0 · GPL-2.0-only
 
 Hasta la versión 2.2.1 se llamaba Gryphmark: al instalar Vigía se quita, y su configuración, sus instancias
 dedicadas y sus borradores de recuperación pasan solos la primera vez que Vigía arranca.
@@ -17,17 +17,17 @@ Manual en PDF: [`docs/Vigia-manual-es.pdf`](docs/Vigia-manual-es.pdf)
 > Solo para macOS 15 o posterior en Apple silicon (arm64). No hay versión para Mac con procesador Intel.
 
 Vigía es un visor y editor de Markdown para la Mac. Das formato con botones (títulos, negrita, listas,
-tablas, código) y Vigía escribe las etiquetas de Markdown por vos; la vista GitHub muestra el documento tal
+tablas, código) y Vigía escribe las etiquetas de Markdown por ti; la vista GitHub muestra el documento tal
 cual lo muestra GitHub, en claro u oscuro. La interfaz está en español, inglés y japonés ([日本語](README.ja.md)).
 
 ## Recarga en vivo
 
 Cuando otro programa cambia el archivo abierto, por ejemplo un asistente de IA que lo edita, Vigía muestra el
-texto nuevo enseguida y te deja donde estabas leyendo, en cualquiera de las vistas; si estabas leyendo el final, seguís lo que se agrega ahí. Sigue las distintas formas de
+texto nuevo enseguida y te deja donde estabas leyendo, en cualquiera de las vistas; si estabas leyendo el final, sigues lo que se agrega ahí. Sigue las distintas formas de
 guardar: escribir encima del archivo, escribir uno nuevo y renombrarlo encima del viejo, o borrarlo y volver a
-escribirlo. Sigue funcionando con la ventana detrás de otras apps, así que el cambio ya está cuando mirás. Lo que
+escribirlo. Sigue funcionando con la ventana detrás de otras apps, así que el cambio ya está cuando miras. Lo que
 cambió queda marcado en verde unos segundos: los párrafos nuevos o reescritos, y en una lista o una tabla solo el
-punto o la fila que se agregó. Si tenés cambios sin guardar, pregunta antes de reemplazarlos.
+punto o la fila que se agregó. Si tienes cambios sin guardar, pregunta antes de reemplazarlos.
 
 ![El editor visual](docs/img/visual-es.png)
 
@@ -38,27 +38,27 @@ punto o la fila que se agregó. Si tenés cambios sin guardar, pregunta antes de
 
 ## Instalación
 
-Bajá `Vigia-<versión>.pkg` de la [página de versiones](https://github.com/Gabriel-Castiglia/vigia/releases/latest)
+Descarga `Vigia-<versión>.pkg` de la [página de versiones](https://github.com/Gabriel-Castiglia/vigia/releases/latest)
 y abrilo. El instalador está en español, inglés o japonés, según el idioma de la Mac. Pone `Vigia.app` en
 `/Applications` y, si había una copia abierta, la cierra antes; instalar un paquete más nuevo conserva la
 configuración.
 
 El paquete no está firmado con un Developer ID de Apple, así que la primera vez macOS no lo abre («Apple no
-pudo verificar…»). Abrí Configuración del Sistema → Privacidad y seguridad, bajá hasta el aviso sobre
-`Vigia-<versión>.pkg`, hacé clic en Abrir igualmente y confirmá. Con el archivo `SHA256SUMS.txt` de cada
-versión podés comprobar la descarga antes:
+pudo verificar…»). Abre Configuración del Sistema → Privacidad y seguridad, baja hasta el aviso sobre
+`Vigia-<versión>.pkg`, haz clic en Abrir igualmente y confirma. Con el archivo `SHA256SUMS.txt` de cada
+versión puedes comprobar la descarga antes:
 
 ```
 shasum -a 256 Vigia-3.2.0.pkg
 ```
 
 Vigía puede abrir archivos Markdown desde el Finder (clic derecho → Abrir con → Vigía) sin quitárselos a
-la app que los abre hoy. Para desinstalarlo, cerrá Vigía, arrastrá `/Applications/Vigia.app` a la
-papelera y, si querés borrar también la configuración, corré `defaults delete io.github.gabriel-castiglia.vigia`.
+la app que los abre hoy. Para desinstalarlo, cierra Vigía, arrastra `/Applications/Vigia.app` a la
+papelera y, si quieres borrar también la configuración, ejecuta `defaults delete io.github.gabriel-castiglia.vigia`.
 
 ## Uso
 
-- Tres vistas del mismo documento (⌘1, ⌘2, ⌘3): Visual, el documento con formato que editás con los botones;
+- Tres vistas del mismo documento (⌘1, ⌘2, ⌘3): Visual, el documento con formato que editas con los botones;
   Markdown, el código con la vista previa en vivo al lado; GitHub, de solo lectura, tal cual lo va a mostrar
   github.com.
 - Pestañas: cada archivo se abre en su propia pestaña, que conserva su historial de deshacer, el cursor y el lugar
@@ -80,7 +80,7 @@ papelera y, si querés borrar también la configuración, corré `defaults delet
   pestaña por archivo. Escribir en ella, guardarla con un nombre o un doble clic en el archivo la conserva. Archivo →
   Pestaña de vista previa para los archivos del panel la desactiva. Un archivo abierto desde Favoritos deja las
   carpetas del panel como estaban.
-- Editar o Solo lectura (⇧⌘L): solo lectura bloquea el texto para que nada cambie por error; igual podés
+- Editar o Solo lectura (⇧⌘L): solo lectura bloquea el texto para que nada cambie por error; aun así puedes
   seleccionar, copiar, buscar y cambiar de vista.
 - La barra y el menú Formato: títulos, negrita, cursiva, tachado, código en línea, listas, listas de tareas,
   sangría, cita, bloque de código, tabla, enlace, imagen y línea horizontal.
@@ -113,7 +113,7 @@ papelera y, si querés borrar también la configuración, corré `defaults delet
 - Actualizaciones que se instalan solas: Ayuda → Buscar actualizaciones, y un chequeo diario. Si hay una versión más
   nueva, una sola pregunta: Actualizar ahora, Ver novedades o Más tarde. El paquete se descarga y se compara con el
   `SHA256SUMS.txt` de la versión (si no coincide se borra sin abrirlo), y la app que trae tiene que tener el mismo
-  identificador, la versión anunciada y la misma firma; Vigía se cierra como cuando lo cerrás vos (pregunta por
+  identificador, la versión anunciada y la misma firma; Vigía se cierra como cuando lo cierras tú (pregunta por
   los cambios sin guardar), la app nueva ocupa el lugar de la vieja y se abre. Las instancias dedicadas toman la
   versión nueva cuando se abre la app principal. Una copia que no es `/Applications/Vigia.app` recibe la página
   de descarga; una instalada por otro usuario abre el paquete ya comprobado en el Instalador.
@@ -169,7 +169,7 @@ papelera y, si querés borrar también la configuración, corré `defaults delet
   *Omitir (hasta salir de Vigía)* y *Agregar al diccionario* (queda en la configuración de este Vigía; el mismo
   diálogo muestra esas palabras, y al destildar una se saca). Edición → Corrector ortográfico lo activa o desactiva
   en todas las pestañas sin tocar el texto.
-- Autoguardado, encendido de fábrica: un archivo con nombre se guarda solo un momento después de que dejás de
+- Autoguardado, encendido de fábrica: un archivo con nombre se guarda solo un momento después de que dejas de
   escribir. El interruptor *Autoguardado* de la barra (también Archivo → Autoguardado) lo apaga, y entonces solo
   Guardar (⌘S) escribe el archivo. Nunca escribe encima de un cambio hecho por otro programa: Vigía pregunta
   antes, igual que sin autoguardado.
@@ -179,9 +179,9 @@ papelera y, si querés borrar también la configuración, corré `defaults delet
   panel de archivos puede enlazar a las otras carpetas del panel, con `../` como en el disco.
 - Instancias dedicadas: clic derecho en un archivo o una carpeta del panel de archivos → *Abrir en una instancia
   dedicada*. Queda como una app propia en Aplicaciones de tu carpeta de inicio, con sus ajustes y el color de su
-  ícono, y la podés dejar en el Dock. Desde la Terminal:
+  ícono, y la puedes dejar en el Dock. Desde la Terminal:
   `Vigia.app/Contents/MacOS/Vigia --make-instance "Notas" --accent red --folder ~/Notas --read-only --mode preview`.
-- Hasta que abrís un archivo propio, Vigía arranca con el documento de ejemplo (Ayuda → Documento de ejemplo
+- Hasta que abres un archivo propio, Vigía arranca con el documento de ejemplo (Ayuda → Documento de ejemplo
   lo abre cuando quieras). En una ventana angosta, los botones de formato que no entran pasan al menú ⋯.
 - Ver → Tema… (⌘,) elige claro, oscuro o como macOS, y uno de doce colores para el resaltado y el ícono del
   Dock; el celeste es el de fábrica. El ícono en el Finder y en Launchpad sigue celeste, porque cambiarlo rompería

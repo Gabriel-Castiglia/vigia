@@ -3,7 +3,7 @@
 <h1 align="center">Vigía</h1>
 <p align="center"><b>Markdown をビジュアルに書いて、GitHub と同じ見た目で確認。</b></p>
 
-Gabriel Castiglia · 2026年11月27日 · バージョン 3.5.4 · GPL-2.0-only
+Gabriel Castiglia · 2026年11月27日 · バージョン 3.6.0 · GPL-2.0-only
 
 [English](README.md) · [Español](README.es.md) · 日本語
 

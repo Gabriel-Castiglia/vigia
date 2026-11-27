@@ -26,7 +26,7 @@ if [[ ! -L build ]]; then
 fi
 [[ "${FIRMA:-}" == adhoc ]] || source scripts/firma.sh
 
-VERSION="3.5.4"
+VERSION="3.6.0"
 COMPILACION="1"
 APP="build/Vigia.app"
 

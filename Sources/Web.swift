@@ -97,7 +97,10 @@ final class FolderSchemeHandler: NSObject, WKURLSchemeHandler {
         }
         let ext = file.pathExtension.lowercased()
         if rewriteIndex && (ext == "html" || ext == "js" && !rel.hasPrefix("lib/")), let s = String(data: data, encoding: .utf8) {
-            data = Data(s.replacingOccurrences(of: "https://app.local/", with: Schemes.appBase).utf8)
+            // Also the Content-Security-Policy of index.html, which names the hosts without the final slash.
+            data = Data(s.replacingOccurrences(of: "https://app.local/", with: Schemes.appBase)
+                         .replacingOccurrences(of: "https://app.local", with: Schemes.app + "://app")
+                         .replacingOccurrences(of: "https://doc.local", with: Schemes.doc + "://doc").utf8)
         }
         let type = FolderSchemeHandler.types[ext] ?? "application/octet-stream"
         let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1",

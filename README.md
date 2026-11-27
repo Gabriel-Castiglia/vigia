@@ -3,7 +3,7 @@
 <h1 align="center">Vigía</h1>
 <p align="center"><b>Write Markdown visually. See it like GitHub.</b></p>
 
-Gabriel Castiglia · November 27, 2026 · version 3.5.4 · GPL-2.0-only
+Gabriel Castiglia · November 27, 2026 · version 3.6.0 · GPL-2.0-only
 
 Until version 2.2.1 it was called Gryphmark: installing Vigía removes it, and its settings, dedicated instances
 and recovery drafts come over the first time Vigía starts.

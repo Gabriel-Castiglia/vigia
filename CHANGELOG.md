@@ -1,5 +1,17 @@
 # Changelog
 
+## 3.6.0 — 2026-11-27
+
+What Vigía for Windows brought in 3.6.0, where it applies on the Mac.
+
+- **Spanish addresses the reader as *tú*** across the interface, the sample document and the README (it used the
+  voseo). The texts that Vigía for Windows has too are now word for word the same. The spelling of Uruguay, with the
+  voseo, is still there for the spell check.
+- **The editor page has a Content Security Policy**: only the program's own scripts run. It is the same page as Vigía
+  3.6.0 for Windows; the Mac serves it with its own addresses (`gm-app://app`, `gm-doc://doc`).
+- **Find ignoring case** no longer shifts the mark in a paragraph with a letter whose lower case is longer (such as
+  the Turkish «İ»): the text looked for is marked and replaced, not the one beside it.
+
 ## 3.5.4 — 2026-11-27
 
 - **The GitHub view follows GitHub in two more cases**, with marked 18.3.0 (it was 15.0.12), the same page as Vigía
