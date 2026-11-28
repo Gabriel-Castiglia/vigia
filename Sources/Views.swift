@@ -293,7 +293,23 @@ struct FileNode: Identifiable, Hashable {
 /// A class and not @State (see DragState).
 final class TreeState: ObservableObject {
     @Published var open: Set<String> = []
+    /// The panel folders and the Favourites / Recent blocks that are closed. They start open, as on Windows,
+    /// so what is kept is the closed ones (keys `root:<path>`, `::fav`, `::recent`).
+    @Published var closed: Set<String> = []
     @Published var tick = 0
+    static let favKey = "::fav", recentKey = "::recent"
+    static func rootKey(_ dir: String) -> String { "root:" + dir }
+
+    /// The open-or-closed state of a panel folder or block, for its DisclosureGroup.
+    func block(_ key: String) -> Binding<Bool> {
+        Binding(get: { !self.closed.contains(key) }, set: { if $0 { self.closed.remove(key) } else { self.closed.insert(key) } })
+    }
+
+    /// True while any row is open, the panel folders and blocks included (Windows: AnyExpanded).
+    func anyOpen(roots: [String]) -> Bool {
+        !open.isEmpty || roots.contains { !closed.contains(TreeState.rootKey($0)) }
+            || !closed.contains(TreeState.favKey) || !closed.contains(TreeState.recentKey)
+    }
     private var revealed: String?     // the file last revealed: a folder closed by hand afterwards stays closed
     /// Files opened from Favourites: reveal leaves the tree alone for them (canonical paths).
     static var noReveal = Set<String>()
@@ -311,12 +327,16 @@ final class TreeState: ObservableObject {
             return (root, TreeState.canonical(root))
         }.filter { path.hasPrefix($0.1 + "/") }.max { $0.1.count < $1.1.count }
         guard let (root, canon) = match else { return }
+        closed.remove(TreeState.rootKey(r0(root, roots)))
         var dir = root
         for part in path.dropFirst(canon.count + 1).split(separator: "/").dropLast() {
             dir += "/" + part
             open.insert(dir)
         }
     }
+
+    /// The panel folder as Prefs keeps it (with or without the trailing slash it was added with).
+    private func r0(_ root: String, _ roots: [String]) -> String { roots.first { $0 == root || $0 == root + "/" } ?? root }
 
     static func canonical(_ path: String) -> String { URL(fileURLWithPath: path).resolvingSymlinksInPath().path }
 
@@ -338,14 +358,21 @@ final class TreeState: ObservableObject {
         return (out, false)
     }
 
+    /// Closes every row, the panel folders and the Favourites / Recent blocks too (Windows: CollapseAllTrees).
+    func collapseAll(roots: [String]) {
+        open = []
+        closed = Set(roots.map(TreeState.rootKey) + [TreeState.favKey, TreeState.recentKey])
+    }
+
     /// The button of the Files panel: collapses every folder while any is open, and expands them all, every
     /// level, when everything is closed. The disk is read off the main thread.
     func toggleAll(roots: [String], doc: DocWindow?) {
-        if !open.isEmpty { open = []; return }
+        if anyOpen(roots: roots) { collapseAll(roots: roots); return }
+        closed = []
         DispatchQueue.global(qos: .userInitiated).async {
             let r = TreeState.allFolders(roots)
             DispatchQueue.main.async {
-                guard self.open.isEmpty else { return }
+                guard self.open.isEmpty, self.closed.isEmpty else { return }
                 self.open = r.ids
                 if r.capped { doc?.flash(L("ExpandCapped", TreeState.expandCap)) }
             }
@@ -436,9 +463,9 @@ struct Sidebar: View {
                     .buttonStyle(.borderless).help(L(prefs.treeLocked ? "TreeLockedTip" : "TreeUnlockedTip")).accessibilityLabel(L(prefs.treeLocked ? "TreeLockedTip" : "TreeUnlockedTip"))
                     .accessibilityIdentifier("treeLock").accessibilityLabel(L(prefs.treeLocked ? "TreeLockedTip" : "TreeUnlockedTip"))
                 Button { tree.toggleAll(roots: prefs.folders, doc: doc) } label: {
-                    Image(systemName: tree.open.isEmpty ? "rectangle.expand.vertical" : "rectangle.compress.vertical")
+                    Image(systemName: tree.anyOpen(roots: prefs.folders) ? "rectangle.compress.vertical" : "rectangle.expand.vertical")
                 }
-                .buttonStyle(.borderless).help(L(tree.open.isEmpty ? "ExpandAll" : "CollapseAll")).accessibilityLabel(L(tree.open.isEmpty ? "ExpandAll" : "CollapseAll"))
+                .buttonStyle(.borderless).help(L(tree.anyOpen(roots: prefs.folders) ? "CollapseAll" : "ExpandAll")).accessibilityLabel(L(tree.anyOpen(roots: prefs.folders) ? "CollapseAll" : "ExpandAll"))
                 .accessibilityIdentifier("treeExpand")
                 Button { tree.tick += 1 } label: { Image(systemName: "arrow.clockwise") }
                     .buttonStyle(.borderless).help(L("Refresh")).accessibilityLabel(L("Refresh"))
@@ -460,35 +487,40 @@ struct Sidebar: View {
                 ScrollViewReader { proxy in
                     List {
                         if !prefs.favorites.isEmpty {
-                            Section {
+                            DisclosureGroup(isExpanded: tree.block(TreeState.favKey)) {
                                 ForEach(prefs.favoritesShown, id: \.self) { p in
                                     FileTreeNode(doc: doc, node: FileNode(url: URL(fileURLWithPath: p), isFolder: Prefs.favIsDir(p)),
                                                  current: model.path, highlight: prefs.highlight, tree: tree, inFavorites: true)
                                 }
-                            } header: {
-                                Text(L("FavTitle")).font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
+                            } label: {
+                                BlockHeader(icon: "star.fill", iconColor: favGold, title: L("FavTitle"), count: prefs.favorites.count,
+                                            tint: prefs.folderColors == "none" ? nil : (favGold, favGold.opacity(prefs.dark ? 0.2 : 0.14)))
+                                    .help(L("FavTip"))
+                                    .contextMenu { FavoritesBlockMenu(prefs: prefs) }
                             }
                         }
                         if prefs.recentPanel {
                             let shown = prefs.recent.filter { FileManager.default.fileExists(atPath: $0) }.prefix(8)
                             if !shown.isEmpty {
-                                Section {
+                                DisclosureGroup(isExpanded: tree.block(TreeState.recentKey)) {
                                     ForEach(Array(shown), id: \.self) { p in
                                         FileRow(doc: doc, node: FileNode(url: URL(fileURLWithPath: p), isFolder: false), current: model.path,
                                                 highlight: prefs.highlight, tree: tree, inRecent: true)
                                     }
-                                } header: {
-                                    Text(L("RecentTitle")).font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
+                                } label: {
+                                    BlockHeader(icon: "clock", iconColor: .secondary, title: L("RecentTitle"), count: shown.count, tint: nil)
                                 }
                             }
                         }
                         ForEach(prefs.orderedFolders, id: \.self) { f in
                             let root = FileNode(url: URL(fileURLWithPath: f), isFolder: true)
-                            Section {
+                            // a row of the tree like its subfolders, that opens and closes (it was a Section header:
+                            // small grey type, always open; Gabriel, 28-nov-2026: «no me las deja compactar»)
+                            DisclosureGroup(isExpanded: tree.block(TreeState.rootKey(f))) {
                                 ForEach(root.children ?? []) { node in
                                     FileTreeNode(doc: doc, node: node, current: model.path, highlight: prefs.highlight, tree: tree)
                                 }
-                            } header: {
+                            } label: {
                                 FolderHeader(doc: doc, dir: f, prefs: prefs, tree: tree)
                             }
                         }
@@ -578,19 +610,21 @@ struct FolderHeader: View {
         let exists = FileManager.default.fileExists(atPath: dir)
         let manual = prefs.folderSort == "opened"
         let i = prefs.folders.firstIndex(of: dir) ?? -1
-        HStack(spacing: 6) {
-            Image(systemName: "folder.fill").font(.system(size: 11)).foregroundStyle(tint?.edge ?? Color.secondary)
-            Text(url.lastPathComponent).lineLimit(1).truncationMode(.middle)
-                .foregroundStyle(exists && tint != nil ? Color.primary : Color.secondary)
+        // the measures of Windows (Gm.FilesRoot): icon 13 as the rows under it, name 11.5 semibold in capitals,
+        // 5 points above and below, the colour band with its edge on the left
+        HStack(spacing: 7) {
+            Image(systemName: "folder.fill").font(.system(size: 13)).foregroundStyle(tint?.edge ?? Color.secondary)
+            Text(url.lastPathComponent.uppercased()).font(.system(size: 11.5, weight: .semibold)).lineLimit(1).truncationMode(.middle)
+                .foregroundStyle(exists ? Color.primary : Color.secondary)
             if !exists { Text(L("FolderUnavailable")).font(.system(size: 10)).foregroundStyle(.secondary) }
             Spacer(minLength: 4)
             if prefs.isPinned(dir) {
                 Image(systemName: "pin.fill").font(.system(size: 9)).foregroundStyle(.secondary).help(L("FolderPinnedTip"))
             }
         }
-        .padding(.horizontal, 6).padding(.vertical, 3)
-        .background(RoundedRectangle(cornerRadius: 5).fill(tint?.fill ?? Color.clear))
-        .contentShape(Rectangle())
+        .blockBand(tint.map { ($0.edge, $0.fill) })
+        .help(dir)
+        .accessibilityLabel(url.lastPathComponent)
         .onDrop(of: [.plainText], isTargeted: nil) { FileOps.shared.drop($0, into: url, doc: doc) }
         .contextMenu {
             Button(L(prefs.isPinned(dir) ? "FolderUnpin" : "FolderPin")) { prefs.togglePin(dir) }
@@ -615,10 +649,57 @@ struct FolderHeader: View {
             Button(L("NewMarkdown")) { FileOps.shared.newItem(folder: false, in: url, doc: doc) }.disabled(!exists || prefs.treeLocked)
             Button(L("NewFolder")) { FileOps.shared.newItem(folder: true, in: url, doc: doc) }.disabled(!exists || prefs.treeLocked)
             Divider()
-            Button(L("CollapseAll")) { tree.open = [] }
+            Button(L("CollapseAll")) { tree.collapseAll(roots: prefs.folders) }
             Button(L("Refresh")) { tree.tick += 1 }
             Divider()
             Button(L("FolderCloseAll")) { prefs.folders = [] }
+        }
+    }
+}
+
+/// The heading of the Favourites or Recent block, drawn as a panel folder is (Windows: Gm.FilesRoot).
+struct BlockHeader: View {
+    let icon: String
+    let iconColor: Color
+    let title: String
+    var count: Int? = nil
+    let tint: (edge: Color, fill: Color)?
+
+    var body: some View {
+        HStack(spacing: 7) {
+            Image(systemName: icon).font(.system(size: 13)).foregroundStyle(iconColor)
+            Text(title).font(.system(size: 11.5, weight: .semibold)).lineLimit(1)
+            Spacer(minLength: 4)
+            if let count { Text("\(count)").font(.system(size: 11)).foregroundStyle(.secondary) }
+        }
+        .blockBand(tint)
+    }
+}
+
+extension View {
+    /// The band of a panel folder or block: its fill, a 3-point edge on the left, 5 points above and below.
+    func blockBand(_ tint: (edge: Color, fill: Color)?) -> some View {
+        padding(.leading, 6).padding(.trailing, 6).padding(.vertical, 5)
+            .background(RoundedRectangle(cornerRadius: 6).fill(tint?.fill ?? Color.clear))
+            .overlay(alignment: .leading) { if let e = tint?.edge { UnevenRoundedRectangle(topLeadingRadius: 6, bottomLeadingRadius: 6).fill(e).frame(width: 3) } }
+            .contentShape(Rectangle())
+    }
+}
+
+/// The right-click menu of the Favourites block, as on Windows: sort, take out the missing ones, empty the list.
+struct FavoritesBlockMenu: View {
+    @ObservedObject var prefs: Prefs
+    var body: some View {
+        Button(L("FavSortAz")) { prefs.sortFavorites() }
+        Button(L("FavRemoveMissing")) { prefs.removeMissingFavorites() }
+            .disabled(!prefs.favorites.contains { !FileManager.default.fileExists(atPath: $0) })
+        Divider()
+        Button(L("FavClear")) {
+            let a = NSAlert()
+            a.messageText = L("FavClearAsk")
+            a.addButton(withTitle: L("FavClearBtn"))
+            a.addButton(withTitle: L("Cancel"))
+            if a.runModal() == .alertFirstButtonReturn { prefs.favorites = [] }
         }
     }
 }
@@ -650,7 +731,7 @@ struct FolderOptionsMenu: View {
             checkItem(L("RecentPanelMenu"), prefs.recentPanel) { prefs.recentPanel.toggle() }
             Divider()
             Button(L("FolderAdd")) { (NSApp.delegate as? AppDelegate)?.pickFolder() }
-            Button(L(tree.open.isEmpty ? "ExpandAll" : "CollapseAll")) { tree.toggleAll(roots: prefs.folders, doc: doc) }
+            Button(L(tree.anyOpen(roots: prefs.folders) ? "CollapseAll" : "ExpandAll")) { tree.toggleAll(roots: prefs.folders, doc: doc) }
             Button(L("FolderCloseAll")) { prefs.folders = [] }.disabled(prefs.folders.isEmpty)
         } label: { Image(systemName: "ellipsis.circle") }
             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().help(L("FolderOptions"))
@@ -814,7 +895,7 @@ struct FileRow: View {
                     Button(L("Delete")) { FileOps.shared.delete(node.url, doc: doc) }.disabled(prefs.treeLocked)
                 }
                 Divider()
-                Button(L("CollapseAll")) { tree.open = [] }
+                Button(L("CollapseAll")) { tree.collapseAll(roots: prefs.folders) }
                 Button(L("Refresh")) { tree.tick += 1 }
             }
     }

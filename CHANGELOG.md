@@ -1,5 +1,14 @@
 # Changelog
 
+## 3.6.2 — 2026-11-28
+
+- **The folders of the Files panel are rows of the tree, as on Windows**: the same size as the folders under them,
+  with their name in capitals and an arrow that opens and closes them. Before, each one was a small grey heading that
+  stayed open. *Collapse all* closes them too, and opening a file opens its folder again. The FAVOURITES and RECENT
+  blocks open and close the same way.
+- The FAVOURITES heading has the menu it has on Windows (sort A → Z, remove the ones that no longer exist, empty the
+  list) and its tooltip.
+
 ## 3.6.1 — 2026-11-27
 
 The rest of what Vigía for Windows brought in 3.6.0, where it applies on the Mac.

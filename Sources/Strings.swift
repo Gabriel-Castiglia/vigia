@@ -81,6 +81,7 @@ let STRINGS: [String: [String]] = [
     "FolderPinnedTip": ["Pinned to the top", "Fijada arriba", "上に固定済み"],
     "FolderUp": ["Move up", "Subir", "上へ移動"],
     "FavTitle": ["FAVOURITES", "FAVORITOS", "お気に入り"],
+    "FavTip": ["Starred files from every folder. Right-click to sort or empty the list.", "Archivos marcados con la estrella, de todas las carpetas. Clic derecho para ordenar o vaciar la lista.", "すべてのフォルダーから星を付けたファイル。右クリックで並べ替えや一覧の消去ができます。"],
     "FavAdd": ["Add to favourites", "Agregar a favoritos", "お気に入りに追加"],
     "FavRemove": ["Remove from favourites", "Quitar de favoritos", "お気に入りから削除"],
     "FavAdded": ["★ {0} added to favourites", "★ {0} agregado a favoritos", "★ {0} をお気に入りに追加しました"],

@@ -344,6 +344,22 @@ enum SelfTest {
         check("files: the open file's folders open, named as the tree names them",
               state.open == [treeRoot.path + "/a", treeRoot.path + "/a/b"], "\(state.open.sorted())")
 
+        // The panel folders open and close as their subfolders do, and Collapse all closes them too (as on Windows).
+        let rootSpelled = treeRoot.path + "/"
+        let rk = TreeState.rootKey(rootSpelled)
+        check("files: a panel folder starts open", state.block(rk).wrappedValue && state.anyOpen(roots: [rootSpelled]))
+        state.collapseAll(roots: [rootSpelled])
+        check("files: Collapse all closes the panel folders and the Favourites and Recent blocks",
+              state.open.isEmpty && !state.block(rk).wrappedValue && !state.block(TreeState.favKey).wrappedValue
+                && !state.block(TreeState.recentKey).wrappedValue && !state.anyOpen(roots: [rootSpelled]), "\(state.closed.sorted())")
+        state.block(rk).wrappedValue = true
+        check("files: a closed panel folder opens by hand", !state.closed.contains(rk) && state.anyOpen(roots: [rootSpelled]))
+        state.collapseAll(roots: [rootSpelled])
+        let revealAgain = TreeState()
+        revealAgain.closed = state.closed
+        revealAgain.reveal(deep, roots: [rootSpelled])
+        check("files: opening a file opens its closed panel folder", !revealAgain.closed.contains(rk), "\(revealAgain.closed.sorted())")
+
         // Folders of the panel: order, pinned ones first, moving, closing, start-up choices and colours (as on Windows).
         let p = Prefs.shared
         let saved = (p.folders, p.pinned, p.folderSort, p.startupFolders, p.folderColors, p.folderColorMap)

@@ -3,7 +3,7 @@
 <h1 align="center">Vigía</h1>
 <p align="center"><b>Escribí Markdown en forma visual. Miralo como en GitHub.</b></p>
 
-Gabriel Castiglia · 27 de noviembre de 2026 · versión 3.6.1 · GPL-2.0-only
+Gabriel Castiglia · 28 de noviembre de 2026 · versión 3.6.2 · GPL-2.0-only
 
 Hasta la versión 2.2.1 se llamaba Gryphmark: al instalar Vigía se quita, y su configuración, sus instancias
 dedicadas y sus borradores de recuperación pasan solos la primera vez que Vigía arranca.
